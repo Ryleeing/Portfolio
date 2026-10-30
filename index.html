@@ -160,6 +160,79 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidd
 .r-rec{margin-left:8px;padding:0;border:0;background:none;font:inherit;font-size:14px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
 .r-rec:hover{color:var(--p-accent);text-decoration-color:currentColor}
 .r-rec:focus-visible{outline:2px solid var(--p-accent);outline-offset:2px}
+/* Case study (story) sections: same grid as the About me page. Serif for section names and big numbers, sans for everything else. */
+.d-story{display:flex;flex-direction:column;gap:72px;padding-top:8px}
+.s-sec{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px 40px}
+.s-sec > h2{margin:0;font-family:var(--title);font-weight:var(--title-weight);letter-spacing:var(--title-track);font-size:26px;line-height:1.15}
+.s-main{min-width:0;display:flex;flex-direction:column;gap:20px}
+.s-lede{margin:0;font-size:20px;line-height:1.4;color:var(--ink)}
+.s-note{margin:0;font-size:15px;line-height:1.6;color:var(--muted);max-width:62ch}
+.s-body{display:flex;flex-direction:column;gap:14px}
+.s-body p{margin:0;font-size:16px;line-height:1.7;color:#cfc8bc;max-width:64ch}
+.s-photo{margin:0}
+.s-photo img,.s-grid img{display:block;width:100%;height:auto;max-width:100%;border-radius:4px;background:#1a1917}
+.s-photo figcaption{margin-top:10px;font-size:14px;color:var(--muted)}
+.s-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
+.s-grid figure{margin:0;display:flex;flex-direction:column;gap:8px}
+.s-grid figcaption{font-size:15px;color:var(--ink)}
+.s-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px}
+.s-list strong{display:block;font-size:16px;font-weight:600;color:var(--ink)}
+.s-list span{display:block;margin-top:4px;font-size:15px;line-height:1.6;color:#cfc8bc;max-width:62ch}
+.s-legend{display:flex;gap:20px;font-size:14px;color:var(--muted)}
+.s-legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.s-chart{display:flex;flex-direction:column;gap:22px}
+.s-group > p{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.s-row{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 72px;align-items:center;gap:6px 16px;padding-block:6px}
+.s-row .lbl{font-size:15px;color:var(--ink)}
+.s-bars{display:flex;flex-direction:column;gap:4px}
+.s-bars i{display:block;height:10px;border-radius:0 2px 2px 0}
+.s-before{background:#5c574f}
+.s-after,.s-now{background:var(--p-accent)}
+.s-bars i.s-now{height:14px}
+.s-tl{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.s-tl li{display:flex;align-items:baseline;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;font-size:14px}
+.s-tl em{font-style:normal;font-size:12px;color:var(--p-accent);font-variant-numeric:tabular-nums;width:12px;flex:none}
+.s-tl .tn{flex:1;min-width:0;color:var(--ink);font-weight:600}
+.s-tl .tn small{font-size:13px;font-weight:400;color:var(--muted)}
+.s-tl .tp{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.s-col .s-tl li > span{display:inline;margin-top:0;font-size:14px;line-height:1.4}
+.s-col .s-tl li > span.tn{color:var(--ink)}
+.s-col .s-tl li > span.tp{color:var(--muted)}
+.s-total{margin:0;padding-top:14px;border-top:1px solid var(--line);font-size:15px;color:var(--ink)}
+.s-row .val{font-size:14px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.s-matrix{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0}
+.s-quad{padding:18px 20px 22px 0;display:flex;flex-direction:column;gap:10px;min-width:0}
+.s-quad:nth-child(2n){padding-left:20px;padding-right:0;border-left:1px solid var(--line)}
+.s-quad:nth-child(-n+2){border-bottom:1px solid var(--line)}
+.s-quad b{font-size:16px;font-weight:600;color:var(--ink)}
+.s-quad small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.s-quad ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:15px;color:#cfc8bc}
+.s-quad .none{font-size:14px;color:var(--muted)}
+.s-axis{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.s-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.s-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.s-col > b{font-size:16px;font-weight:600;color:var(--ink)}
+.s-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.s-col li strong{display:block;font-size:15px;font-weight:600;color:var(--ink)}
+.s-col li span{display:block;margin-top:2px;font-size:14px;line-height:1.5;color:#cfc8bc}
+.s-col .tools{margin:0;font-size:14px;color:var(--muted)}
+.s-stats{display:flex;flex-direction:column;gap:28px}
+.s-big{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.s-big b{font-family:var(--title);font-weight:var(--title-weight);font-size:clamp(56px,8vw,88px);line-height:1;color:var(--ink);letter-spacing:var(--title-track)}
+.s-big span{font-size:18px;color:var(--ink)}
+.s-nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+.s-nums b{display:block;font-family:var(--title);font-weight:var(--title-weight);font-size:40px;line-height:1;color:var(--ink);letter-spacing:var(--title-track)}
+.s-nums span{display:block;margin-top:8px;font-size:14px;line-height:1.45;color:var(--muted)}
+.s-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px}
+.s-step{display:flex;flex-direction:column;gap:8px;min-width:0}
+.s-step small{font-size:14px;color:var(--muted)}
+.s-step b{font-size:17px;font-weight:600;color:var(--ink)}
+.s-step ul{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.s-step li,.s-dot li{position:relative;padding-left:16px;font-size:14px;line-height:1.55;color:#cfc8bc}
+.s-step li::before{content:"";position:absolute;left:1px;top:.62em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+@media (max-width:900px){.s-cols,.s-steps{grid-template-columns:minmax(0,1fr)}.s-nums{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.s-sec{grid-template-columns:minmax(0,1fr)}.s-row{grid-template-columns:minmax(0,1fr) 64px}.s-row .lbl{grid-column:1 / -1}.s-row .s-bars{grid-column:1}}
+@media (max-width:480px){.s-grid,.s-matrix{grid-template-columns:minmax(0,1fr)}.s-quad,.s-quad:nth-child(2n){padding:16px 0;border-left:0;border-bottom:1px solid var(--line)}.s-quad:last-child{border-bottom:0}}
 .d-tracks h2{margin:0 0 20px;color:var(--muted);font-weight:500}
 .d-tracks ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .d-tracks li{display:grid;grid-template-columns:56px minmax(0,220px) minmax(0,1fr);gap:20px;padding-block:22px;border-bottom:1px solid var(--line);align-items:baseline}
@@ -221,6 +294,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidd
       </div>
     </div>
     <section class="d-resume" id="dResume" hidden aria-label="About me"></section>
+    <section class="d-story" id="dStory" hidden aria-label="Case study"></section>
     <section class="d-film" id="dFilm" hidden></section>
     <section class="d-tracks" aria-label="Project process"><ol id="dTracks"></ol></section>
     <section class="d-gallery" id="dGallery" hidden aria-label="Portfolio pages"></section>
@@ -360,13 +434,56 @@ const PROJECTS = [
            ['A2','Interaction','You trace the projection with a real pen, so digital guidance meets ordinary hand drawing.'],
            ['B1','Result','Built in two days at Junction 2025 and placed in the top 5 of the Snapchat challenge.']]},
   {title:'Porta Aperta', genre:'ai', sub:'Generative AI strategy for a nonprofit', cat:'AI Strategy · UX Research', year:2025, period:'Aug 2025',
-   context:'Team project with Porta Aperta, Modena', role:'UX research · AI workflow design · strategy', medium:'Evaluations · interviews · workshops · AI workflows',
+   context:'EIT summer school “GenAI in Start-ups and Scale-ups”', role:'UX research · AI workflow design · strategy', medium:'Interviews · usability testing · workshop · impact–effort mapping',
    award:'1st Place among all teams',
    colors:['#7c2d12','#fbeee2','#f4b860'], spine:['#f4b860','#3b1306'], style:3, tags:['Generative AI','UX Research','Service Design','Nonprofit'],
-   tracks:[['A1','Context','Porta Aperta is a historic nonprofit in Modena, Italy, offering food, shelter, legal aid and integration programs. Manual workflows, volunteer coordination and donor engagement were slowing it down.'],
-           ['A2','Research','Ran inspection-based and user-based evaluations, usability tests and user interviews, and organized a workshop with the organization.'],
-           ['B1','Strategy','Designed targeted AI workflows to cut manual work, and contributed to the roadmap, business impact assessment and ethical risk analysis. Presented the full proposal to an academic panel and industry mentors.'],
-           ['B2','Result','Projected 58% time savings and about €432,000 in annual cost savings. Awarded first place for innovation, impact and feasibility.']]},
+   tracks:[],
+   /* A UX case study built from the team's final pitch. Each block is one section of the page. */
+   story:[
+     {type:'photo', src:'portfolio/porta/volunteers.jpg', w:1200, h:826, alt:'Porta Aperta volunteers in green aprons outside the soup kitchen'},
+     {type:'text', h:'The brief', body:[
+       'Since 1978, Porta Aperta has been a lifeline for vulnerable people in Modena, Italy: a soup kitchen, emergency shelter, clothing distribution and healthcare assistance, plus employment programmes from skills workshops to job placement. A small staff runs it with more than 500 volunteers.',
+       'Our team was asked where generative AI could help. We started from the people instead of the technology: protect the time staff spend with beneficiaries, volunteers and donors, and hand the routine work around it to AI.']},
+     {type:'grid', h:'The work that matters', note:'The four activities at the heart of the mission. Every recommendation had to give time back to these.', items:[
+       {src:'portfolio/porta/service.jpg', w:950, h:586, label:'Direct service delivery'},
+       {src:'portfolio/porta/volunteer-day.jpg', w:950, h:586, label:'Volunteer engagement'},
+       {src:'portfolio/porta/donors.jpg', w:950, h:586, label:'Donor stewardship'},
+       {src:'portfolio/porta/beneficiaries.jpg', w:950, h:586, label:'Beneficiary empowerment'}]},
+     {type:'list', h:'The problem', lede:'Doing more with less.', items:[
+       ['Limited funding for technology','Money goes to services first, so tools stay basic and much of the work is manual.'],
+       ['Staff stretched across roles','The same people run intake, fundraising, scheduling and communications.'],
+       ['Growing community needs','Demand keeps rising while staff numbers stay the same.']]},
+     {type:'list', h:'Research', lede:'We combined four methods to see the work as staff experience it.', items:[
+       ['User interviews','Conversations with the people doing the work.'],
+       ['Inspection-based evaluation','An expert review of the current tools and workflows.'],
+       ['User-based evaluation and usability tests','Watching real tasks being done with today’s tools.'],
+       ['Workshop with the organisation','Checking findings and priorities together with the team.']]},
+     {type:'chart', h:'Where the week goes', note:'Estimated hours per week on eight routine tasks, before and after the proposed AI workflows. Volunteer scheduling and grant applications take the most time today.',
+      groups:[
+       ['Fundraising and donor acquisition', [['Grant finding',20,10],['Grant applications',40,20],['Donor search',20,7]]],
+       ['Beneficiary intake and support',    [['Intake conversations',5,5],['Data entry',5,1],['CV creation',10,2]]],
+       ['Internal operations',               [['Content creation',5,2],['Volunteer scheduling',45,6]]]]},
+     {type:'matrix', h:'Deciding what to automate', note:'We plotted every candidate task by impact and effort, then started where impact is high and effort is low.', quads:[
+       ['Start here','High impact, low effort',['Identify new funding','CV creation','Translation','Volunteer scheduling','Personalised thank-you notes and impact reports'], true],
+       ['Long term','High impact, high effort',['Identify potential donors','Interview preparation','Helping people find jobs']],
+       ['Quick wins','Low impact, low effort',['Content creation']],
+       ['Avoid','Low impact, high effort',[]]]},
+     {type:'columns', h:'Eight workflows, three areas', note:'Each workflow pairs an affordable tool with a person who reviews the result: AI drafts, people decide.', cols:[
+       ['Fundraising and donor acquisition', [['Donor search and outreach','Find potential donors and keep in touch.'],['Grant finding','Spot grants Porta Aperta is eligible for.'],['Grant application drafting','Draft applications for each funder’s requirements.']], 'Clay · GrantStation · Grant Assistant · ChatGPT'],
+       ['Beneficiary intake and support', [['Intake conversations','Take notes during the first needs assessment.'],['Data entry','Move those notes into the internal database.'],['CV creation','Write and review CVs for people seeking work.']], 'Notta · n8n · ChatGPT · Canva'],
+       ['Internal operations', [['Content creation','Design and post social media content.'],['Volunteer scheduling','Manage shifts for more than 500 volunteers.']], 'Canva · Calendly · Airtable']]},
+     {type:'stats', h:'Impact', note:'Yearly estimates from our business impact assessment.', lead:['€432k','value unlocked per year'], items:[
+       ['58%','less time on routine tasks'],['€75k','of staff time saved'],['€360k','new funding potential: €200k grants, €160k donations'],['€3k','yearly cost of AI tools']]},
+     {type:'steps', h:'Rollout', items:[
+       ['Months 1–3','Pilot and quick wins',['Pilot Clay for donor prospecting','Launch the grant discovery pilot','Run 3–4 hour staff workshops to build confidence and handle data safely','Test AI in the intake process']],
+       ['Months 4–6','Process automation',['Scale donor prospecting','Start AI-supported volunteer scheduling with Calendly and Airtable','AI-assisted intake at every reception point, standard CV templates, translation and content creation']],
+       ['Year 1','Consolidation and evaluation',['Measure cost savings, time saved, new donors and beneficiary experience','Adjust the tool selection','Explore advanced use cases']]]},
+     {type:'list', h:'Risks and safeguards', items:[
+       ['Data privacy and compliance','Combining donor information could conflict with GDPR. We use public sources only and keep prospecting separate from personal data.'],
+       ['Bias and fairness','AI can reproduce bias, for example in CV wording or donor targeting. People review every AI output, with regular bias checks.'],
+       ['Financial and operational sustainability','External platforms can lock in costs. We start with low-cost, flexible, open-source and subscription tools, and track return on investment.']]},
+     {type:'photo', src:'portfolio/porta/team.jpg', w:1600, h:900, alt:'The project team at the final pitch', caption:'Our team at the final pitch, University of Glasgow.'},
+   ]},
   {title:'VibeRide', genre:'physical', sub:'Navigation you feel', cat:'Wearable Interaction', year:2025, context:'Interaction design project', medium:'Haptics', film:'2:30', yt:'m1dZxFnZO50',
    colors:['#0e2b25','#e8f3ee','#2de38c'], spine:['#2de38c','#0b1b17'], style:1, tags:['Haptics','Cycling','Wearable'],
    tracks:[['A1','Problem','Checking a phone map while cycling is distracting and unsafe.'],
@@ -987,6 +1104,111 @@ function playFilm(p){
   filmCleanup = () => { stop(); f.remove(); };
 }
 
+function renderStory(p){
+  const box = $('dStory'); box.innerHTML = ''; box.hidden = !p.story;
+  if(!p.story) return;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
+  const img = (src, w, h, alt) => { const i = el('img'); i.src = src; i.width = w; i.height = h; i.alt = alt || ''; i.loading = 'lazy'; i.decoding = 'async'; return i; };
+  for(const b of p.story){
+    if(b.type === 'photo'){                     // full-width photo between sections
+      const f = el('figure', 's-photo'); f.append(img(b.src, b.w, b.h, b.alt));
+      if(b.caption) f.append(el('figcaption', null, b.caption));
+      box.append(f); continue;
+    }
+    const sec = el('section', 's-sec'), main = el('div', 's-main');
+    sec.append(el('h2', null, b.h), main);
+    if(b.lede) main.append(el('p', 's-lede', b.lede));
+    if(b.note) main.append(el('p', 's-note', b.note));
+    if(b.type === 'text'){
+      const d = el('div', 's-body'); for(const t of b.body) d.append(el('p', null, t)); main.append(d);
+    } else if(b.type === 'grid'){
+      const g = el('div', 's-grid');
+      for(const it of b.items){ const f = el('figure'); f.append(img(it.src, it.w, it.h, it.label), el('figcaption', null, it.label)); g.append(f); }
+      main.append(g);
+    } else if(b.type === 'list'){
+      const ul = el('ul', 's-list');
+      for(const [name, desc] of b.items){ const li = el('li'); li.append(el('strong', null, name), el('span', null, desc)); ul.append(li); }
+      main.append(ul);
+    } else if(b.type === 'chart'){
+      const max = 45;   // both time charts share one scale so they can be compared
+      const two = b.groups[0][1][0].length > 2;
+      const lg = el('div', 's-legend');
+      lg.innerHTML = two ? '<span><i class="s-before"></i>Before</span><span><i class="s-after"></i>With AI workflows</span>' : '<span><i class="s-now"></i>Hours per week today</span>';
+      const ch = el('div', 's-chart'); ch.setAttribute('role', 'img');
+      ch.setAttribute('aria-label', 'Hours per week: ' + b.groups.flatMap(g => g[1]).map(r => two ? `${r[0]} ${r[1]} to ${r[2]}` : `${r[0]} ${r[1]}`).join('; '));
+      for(const [gname, rows] of b.groups){
+        const g = el('div', 's-group'); g.append(el('p', null, gname));
+        for(const [name, before, after] of rows){
+          const r = el('div', 's-row'), bars = el('div', 's-bars');
+          if(two){
+            const b1 = el('i', 's-before'), b2 = el('i', 's-after');
+            b1.style.width = (before / max * 100) + '%'; b2.style.width = Math.max(1, after / max * 100) + '%';
+            bars.append(b1, b2);
+          } else { const b1 = el('i', 's-now'); b1.style.width = (before / max * 100) + '%'; bars.append(b1); }
+          r.append(el('span', 'lbl', name), bars, el('span', 'val', two ? `${before} → ${after} h` : `${before} h`));
+          g.append(r);
+        }
+        ch.append(g);
+      }
+      main.append(lg, ch);
+    } else if(b.type === 'matrix'){
+      const m = el('div', 's-matrix');
+      for(const [name, sub, items, key] of b.quads){
+        const q = el('div', 's-quad');
+        const head = el('div'); head.append(el('b', null, name), el('small', null, sub)); q.append(head);
+        if(items.length){ const ul = el('ul'); for(const t of items) ul.append(el('li', null, t)); q.append(ul); }
+        else q.append(el('span', 'none', 'Nothing landed here'));
+        m.append(q);
+      }
+      const ax = el('div', 's-axis'); ax.append(el('span', null, '← Lower effort'), el('span', null, 'Higher effort →'));
+      main.append(m, ax);
+    } else if(b.type === 'columns'){
+      const c = el('div', 's-cols');
+      for(const [name, flows, tools] of b.cols){
+        const col = el('div', 's-col'); col.append(el('b', null, name));
+        const ul = el('ul'); for(const [f, d] of flows){ const li = el('li'); li.append(el('strong', null, f), el('span', null, d)); ul.append(li); }
+        col.append(ul, el('p', 'tools', 'Tools: ' + tools)); c.append(col);
+      }
+      main.append(c);
+    } else if(b.type === 'tools'){
+      const c = el('div', 's-cols');
+      for(const [area, flows] of b.cols){
+        const col = el('div', 's-col'); col.append(el('b', null, area));
+        const ul = el('ul');
+        for(const [f, d, tools] of flows){
+          const li = el('li'); li.append(el('strong', null, f), el('span', null, d));
+          const tl = el('ol', 's-tl' + (tools.length > 1 ? ' is-seq' : ''));
+          tools.forEach(([name, plan, price], k) => {
+            const t = el('li');
+            if(tools.length > 1) t.append(el('em', null, String(k + 1)));
+            const nm = el('span', 'tn', name); if(plan){ nm.append(el('small', null, ' ' + plan)); }
+            t.append(nm, el('span', 'tp', price === 'Free' ? 'Free' : price + '/yr'));
+            tl.append(t);
+          });
+          li.append(tl); ul.append(li);
+        }
+        col.append(ul); c.append(col);
+      }
+      main.append(c);
+      if(b.total) main.append(el('p', 's-total', b.total));
+    } else if(b.type === 'stats'){
+      const st = el('div', 's-stats'), big = el('div', 's-big');
+      big.append(el('b', null, b.lead[0]), el('span', null, b.lead[1]));
+      const nums = el('div', 's-nums');
+      for(const [n, l] of b.items){ const d = el('div'); d.append(el('b', null, n), el('span', null, l)); nums.append(d); }
+      st.append(big, nums); main.append(st);
+    } else if(b.type === 'steps'){
+      const s = el('div', 's-steps');
+      for(const [when, name, items] of b.items){
+        const d = el('div', 's-step'); d.append(el('small', null, when), el('b', null, name));
+        const ul = el('ul'); for(const t of items) ul.append(el('li', null, t)); d.append(ul); s.append(d);
+      }
+      main.append(s);
+    }
+    box.append(sec);
+  }
+}
+
 function renderResume(p){
   const box = $('dResume'); box.innerHTML = ''; box.hidden = !p.resume;
   if(!p.resume) return;
@@ -1034,6 +1256,7 @@ function fillDetail(i){
   for(const [label, url] of links){ const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label + ' ↗'; $('dLinks').append(a); }
   $('dContext').parentElement.hidden = !!p.about;
   renderResume(p);
+  renderStory(p);
   $('dTracks').parentElement.hidden = !p.tracks.length;
   $('dTitle').textContent = p.title;
   $('dBar').classList.remove('is-hidden');
