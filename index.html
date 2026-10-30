@@ -894,12 +894,13 @@ function openProject(i, instant, nav){
     onComplete(){ S.mode = 'detail'; detail.style.pointerEvents = 'auto'; $('backBtn').focus({preventScroll:true}); },
     onReverseComplete(){ S.mode = 'browse'; detail.hidden = true; S.sel = -1; S.target = S.current; S.vel = 0; canvas.focus({preventScroll:true}); }
   });
-  tl.to(S, {current:dest, duration:.55, ease:'power2.out'}, 0)
-    .to(S, {othersOut:1, duration:.6, ease:'power2.in'}, .05)
-    .to(S, {openT:1, duration:.95, ease:'power3.inOut'}, .2)
-    .to(S, {discT:1, duration:.85, ease:'power2.out'}, .95)
-    .to(S, {zoom:1, duration:.75, ease:'power2.in'}, 1.75)
-    .to(detail, {opacity:1, duration:.45, ease:'none'}, 2.1);
+  // about 1.7 s in total: the turn and the vinyl slide keep their time, the push-in and fade are short
+  tl.to(S, {current:dest, duration:.5, ease:'power2.out'}, 0)
+    .to(S, {othersOut:1, duration:.5, ease:'power2.in'}, .05)
+    .to(S, {openT:1, duration:.8, ease:'power3.inOut'}, .15)
+    .to(S, {discT:1, duration:.6, ease:'power2.out'}, .7)
+    .to(S, {zoom:1, duration:.45, ease:'power2.in'}, 1.2)
+    .to(detail, {opacity:1, duration:.35, ease:'none'}, 1.35);
   tl.timeScale(timeScale());
   if(instant) tl.progress(1);
 }
