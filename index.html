@@ -172,7 +172,19 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidd
 .s-photo{margin:0}
 .s-photo img,.s-grid img{display:block;width:100%;height:auto;max-width:100%;border-radius:4px;background:#1a1917}
 .s-photo figcaption{margin-top:10px;font-size:14px;color:var(--muted)}
-.s-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px}
+.s-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;align-items:start}
+.s-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.s-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.s-grid-fixed img{aspect-ratio:var(--ratio);object-fit:cover}   /* same height across the row */
+/* Flow: a lane per output, steps read left to right with a thin arrow between them; no boxes. */
+.s-flow{display:flex;flex-direction:column;gap:28px}
+.s-lane-name{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.s-lane ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 32px}
+.s-lane li{position:relative;min-width:0}
+.s-lane li + li::before{content:"→";position:absolute;left:-22px;top:0;color:var(--muted);font-size:15px}
+.s-lane strong{display:block;font-size:15px;font-weight:600;color:var(--ink)}
+.s-lane span{display:block;margin-top:4px;font-size:14px;line-height:1.5;color:#cfc8bc}
+@media (max-width:760px){.s-lane ol{grid-template-columns:minmax(0,1fr);gap:22px}.s-lane li + li::before{content:"↓";left:0;top:-17px;font-size:13px}.s-grid-3,.s-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}.s-lane li + li{padding-top:2px}}
 .s-grid figure{margin:0;display:flex;flex-direction:column;gap:8px}
 .s-grid figcaption{font-size:15px;color:var(--ink)}
 .s-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:18px}
@@ -294,8 +306,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidd
       </div>
     </div>
     <section class="d-resume" id="dResume" hidden aria-label="About me"></section>
-    <section class="d-story" id="dStory" hidden aria-label="Case study"></section>
     <section class="d-film" id="dFilm" hidden></section>
+    <section class="d-story" id="dStory" hidden aria-label="Case study"></section>
     <section class="d-tracks" aria-label="Project process"><ol id="dTracks"></ol></section>
     <section class="d-gallery" id="dGallery" hidden aria-label="Portfolio pages"></section>
     <div class="d-next"><button id="backBtn2" type="button">← Back to the shelf</button><button id="nextBtn" type="button"></button></div>
@@ -398,10 +410,71 @@ const PROJECTS = [
            ['A2','Design','Designed the interface, the learning scenarios, and the voice interaction flows and feedback for real-time conversations. Refined the experience through rounds of iteration on flows, contextual hints, animated transitions and in-game feedback.'],
            ['B1','Build','Gemini Live powers real-time spoken conversations. AI characters answer in context and judge whether you completed the task. The journey runs through animated Paris scenes with hints and optional side conversations.'],
            ['B2','Result','Second Prize at the {Tech:Euro} Google DeepMind Agentic AI Hackathon in Stockholm.']]},
-  {title:'Cloud', genre:['picks','physical'], sub:'Physical interaction', cat:'Physical Interaction', year:2026, context:'Physical interaction course', medium:'Physical computing', film:'2:11', yt:'G4dGJgMq8wg',
-   colors:['#dfe6ec','#1d2733','#5b8def'], spine:['#1d2733','#dfe6ec'], style:3, tags:['Physical Interaction','Course Project'],
-   tracks:[['A1','The piece','A physical interaction project made for a course in 2026.'],
-           ['A2','The film','The video shows the piece being built and used.']]},
+  {title:'Cloud', genre:['picks','physical'], sub:'A soft robot that keeps you company', cat:'Physical Interaction · Soft Robotics', year:2026, period:'Sep – Oct 2026',
+   context:'Course project, DH2400 at KTH', role:'Interaction design · Arduino code · sound system', medium:'Arduino UNO R4 WiFi · light and touch sensors · LEDs · Hammerspoon · foam and fibre fill',
+   film:'2:11', yt:'G4dGJgMq8wg',
+   colors:['#dfe6ec','#1d2733','#5b8def'], spine:['#1d2733','#dfe6ec'], style:3, tags:['Physical Interaction','Soft Robotics','Arduino'],
+   tracks:[],
+   /* Case study. Board crops come from the team's FigJam; photos and the video frame from the build. */
+   story:[
+     {type:'photo', src:'portfolio/cloud/glow.jpg', w:1400, h:1050, alt:'The finished cloud glowing on the workbench, wires and Arduino underneath'},
+     {type:'text', h:'The idea', body:[
+       'A robot does not have to be a person or a box of metal. Cloud is a soft robot shaped like a cloud. It glows, breathes, reacts when you touch it, and nudges you when you have been sitting too long.',
+       'It is for people who live alone through a long, dark Nordic winter: you come home to an empty room, and something in it notices you. We built it in a team of four over six weeks.']},
+     {type:'list', h:'Six weeks', items:[
+       ['Week 36 · Brainstorm','Dozens of directions: a magic wand that controls furniture, a weighted plushie that helps you breathe, a phone lock box for better sleep, a posture robot.'],
+       ['Week 37 · Button workshop and game jam','Learning to turn everyday objects into inputs with Arduino.'],
+       ['Week 38 · Materials and first crit','Narrowing to one concrete idea, a material and a way to interact.'],
+       ['Week 39 · Soft robotics and second crit','Choosing the cloud, and defining it by how a pet behaves.'],
+       ['Week 40 · Prototype feedback','Testing the first working prototype and getting the sound system to work.'],
+       ['Week 41–42 · Making, film and exhibition','Building the final body, filming the day-in-the-life scenario and showing it.']]},
+     {type:'photo', src:'portfolio/cloud/board-overview.jpg', w:3000, h:684, alt:'The whole FigJam board, from the schedule to weeks 36–41', caption:'Our shared FigJam board, one panel per week. Details below.'},
+     {type:'photo', src:'portfolio/cloud/board-w36.jpg', w:1600, h:1280, alt:'Week 36 FigJam brainstorm board', caption:'Week 36 brainstorm. Our supervisor’s advice: the interaction has to be solid, and Wizard of Oz is fine as long as we know how it could really be built.'},
+     {type:'text', h:'From many ideas to one', body:[
+       'The early ideas shared one thread: comfort for people who struggle with anxiety, loneliness or stress. The strongest was a multimodal plushie that calms you with deep pressure and warmth.',
+       'We kept that calming role and moved it into a cloud, a soft shape that can glow and, in theory, float. We then defined it the way you would describe a pet, so every interaction had a reason to exist.']},
+     {type:'photo', src:'portfolio/cloud/fitting.jpg', w:1400, h:1050, alt:'Rylee showing the foam prototype to classmates around a table', caption:'Showing our idea to classmates and collecting their feedback.'},
+     {type:'photo', src:'portfolio/cloud/board-w39-mood.jpg', w:1600, h:1250, alt:'Week 39 mood board of cloud lights and soft inflatable objects', caption:'Week 39 mood board: cloud lamps, soft inflatables and light installations.'},
+     {type:'photo', src:'portfolio/cloud/board-w39-ideas.jpg', w:1600, h:1150, alt:'Week 39 sketch and sticky notes defining the cloud’s behaviour', caption:'Defining the behaviour. Feedback narrowed it to three: be a pet, remind you when you sit too long, and comfort you at bedtime.'},
+     {type:'list', h:'How it behaves', lede:'Like a pet, not a gadget.', items:[
+       ['Welcome','When you come home, it lights up and starts to breathe.'],
+       ['Petting','Stroke it and it breathes back. Touch the wrong spot and it flashes, a little annoyed.'],
+       ['Reminder','After you have sat for too long, it flashes and makes a sound until you move.'],
+       ['Breathing practice','When you feel anxious, its slow glow gives you a rhythm to breathe along to.'],
+       ['Bedtime','It rests next to you and turns off with a tap or a hug.']]},
+     {type:'grid', h:'Storyboard', note:'The scenario we filmed, from a cold, dark winter evening to breathing practice before sleep.', cols:2, items:[
+       {src:'portfolio/cloud/storyboard.jpg', w:1100, h:1407, label:'Storyboard for the final film'},
+       {src:'portfolio/cloud/sketching.jpg', w:900, h:1200, label:'Sketching what the cloud can sense and do'}]},
+     {type:'flow', h:'How it works', note:'One Arduino reads the sensors and drives two outputs: light directly, and sound through the laptop.', lanes:[
+       ['Light', [['Sensors','A touch sensor on pin 2 and three light sensors on A0–A2'],['Arduino UNO R4 WiFi','Turns sensor readings into gestures'],['24 LEDs','Fade in and out, driven from PWM pins 9 and 10']]],
+       ['Sound', [['Arduino as a keyboard','Each gesture sends a key press over USB'],['Hammerspoon on the laptop','init.lua maps each key to one of four sounds'],['Bluetooth speaker','Hidden inside the cloud']]]]},
+     {type:'list', h:'Reading gestures', lede:'Three light sensors turn a hand passing over the cloud into gestures.', items:[
+       ['Swipe','Cover sensor 1, then sensor 2 within two seconds, and the cloud reads it as a stroke.'],
+       ['Breathe','Cover sensor 3 and the LEDs slowly fade in and out, holding each breath for three seconds.'],
+       ['Rest','With no input for five seconds, it settles back into a quiet idle glow.']]},
+     {type:'grid', note:'Testing the swipe gesture, and the code with live sensor readings.', cols:2, ratio:'4/3', items:[
+       {src:'portfolio/cloud/swipe.jpg', w:1200, h:900, label:'A hand passes over the light sensors, and the LEDs answer'},
+       {src:'portfolio/cloud/code.jpg', w:1400, h:1050, label:'Thresholds and timings in the Arduino sketch'}]},
+     {type:'text', h:'Building the body', body:[
+       'The skeleton is foam cut with a hot wire, then rolled and held with paper tape and wrapped in polyester fibre fill. The electronics sit inside the hollow shell, so we could keep reaching in to fix and adjust them until the end.']},
+     {type:'grid', cols:3, ratio:'4/3', items:[
+       {src:'portfolio/cloud/skeleton.jpg', w:1400, h:1050, label:'Gluing the foam skeleton'},
+       {src:'portfolio/cloud/inside.jpg', w:1400, h:1050, label:'Electronics inside the shell'},
+       {src:'portfolio/cloud/solder.jpg', w:900, h:1200, label:'Soldering sensor leads'}]},
+     {type:'grid', cols:3, ratio:'3/4', items:[
+       {src:'portfolio/cloud/led-test.jpg', w:900, h:1200, label:'First LED test'},
+       {src:'portfolio/cloud/flute.jpg', w:900, h:1200, label:'A 3D-printed pan flute, tested as a way to call the cloud'},
+       {src:'portfolio/cloud/printer.jpg', w:900, h:1200, label:'Printing the flute'}]},
+     {type:'list', h:'Challenges', items:[
+       ['Playing sound from an Arduino','An Arduino needs an extra music module and a wired speaker to play audio, and our first try with MusicBee failed. So we made the Arduino act as a keyboard instead. Each gesture sends a key, Hammerspoon on the laptop plays the matching sound, and a Bluetooth speaker inside the cloud makes it seem to come from the cloud itself. No extra hardware, and the sounds are easy to swap.'],
+       ['Keeping 24 LEDs reliable','With 24 LEDs wired through the shell, some lit one time and not the next. We labelled every LED and its lead so we could trace each fault back to a single connection and fix it one by one.'],
+       ['Cutting foam into a cloud','Getting clean curves out of foam took some figuring out. We settled on a heated wire, which melts through the foam instead of tearing it, and gave the skeleton smooth edges.'],
+       ['Three sensors, three baselines','The light sensors gave quite different resting readings, so one shared threshold never worked. Each sensor got its own trigger value, tuned against live readings in the serial monitor.'],
+       ['Flying without a budget','In theory, helium could lift a cloud this light, but the course had no budget for it. For the film we hung the cloud and shot it so it appears to float.'],
+       ['Too many ideas','After weeks of brainstorming, supervisor feedback helped us cut down to the three behaviours that mattered most.']]},
+     {type:'text', h:'What I took away', body:[
+       'A robot can be soft, quiet and shaped like something from nature, and that changes what interacting with it feels like. The keyboard trick also taught me to look for the simplest path through a system before adding more hardware.']},
+   ]},
   {title:'Scent Greeting', size:'single', genre:'physical', sub:'Clothes that greet back', cat:'Wearable Interaction', year:2026, context:'Physical interaction course, 3-hour demo', medium:'Sustainable materials', film:'0:07', yt:'bo46GTKcwr0',
    colors:['#e8efe4','#203024','#7fc37a'], spine:['#203024','#e8efe4'], style:2, tags:['Wearable','Physical Interaction','Rapid Prototype'],
    tracks:[['A1','Idea','When you greet a friend, your clothes respond by releasing a cool breeze and a scent.'],
@@ -1122,9 +1195,23 @@ function renderStory(p){
     if(b.type === 'text'){
       const d = el('div', 's-body'); for(const t of b.body) d.append(el('p', null, t)); main.append(d);
     } else if(b.type === 'grid'){
-      const g = el('div', 's-grid');
+      const g = el('div', 's-grid' + (b.cols === 3 ? ' s-grid-3' : b.cols === 4 ? ' s-grid-4' : ''));
+      if(b.ratio) g.style.setProperty('--ratio', b.ratio), g.classList.add('s-grid-fixed');
       for(const it of b.items){ const f = el('figure'); f.append(img(it.src, it.w, it.h, it.label), el('figcaption', null, it.label)); g.append(f); }
       main.append(g);
+    } else if(b.type === 'image'){
+      const f = el('figure', 's-photo'); const i = img(b.src, b.size[0], b.size[1], b.alt);   // size, not w/h: h is the section heading
+      if(b.maxw) i.style.maxWidth = b.maxw + 'px';
+      f.append(i); main.append(f);
+    } else if(b.type === 'flow'){
+      const fl = el('div', 's-flow');
+      for(const [lane, nodes] of b.lanes){
+        const row = el('div', 's-lane'); row.append(el('p', 's-lane-name', lane));
+        const ol = el('ol');
+        for(const [name, detail] of nodes){ const li = el('li'); li.append(el('strong', null, name), el('span', null, detail)); ol.append(li); }
+        row.append(ol); fl.append(row);
+      }
+      main.append(fl);
     } else if(b.type === 'list'){
       const ul = el('ul', 's-list');
       for(const [name, desc] of b.items){ const li = el('li'); li.append(el('strong', null, name), el('span', null, desc)); ul.append(li); }
