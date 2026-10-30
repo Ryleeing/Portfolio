@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rylee’s Record Shelf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=Geist+Mono:wght@400;500&family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500&family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-screen WebGL record stack with a corner HUD; clicking a record opens a scrollable project page on top. Deliberately single dark theme (record store at night). */
+:root{
+  --bg:#0d0c0b;          /* background: warm black */
+  --ink:#eee8dd;         /* main text: old paper */
+  --muted:#8c857a;       /* secondary text */
+  --line:rgba(238,232,221,.14);
+  --amber:#e9a23b;       /* UI accent: tube-amp amber */
+  --p-accent:#e9a23b;    /* accent of the current record (set by JS) */
+  /* type: three switchable pairings (see TYPES in the script); these are the defaults */
+  --title:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --title-weight:400;
+  --title-track:-.01em;
+  --sans:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;outline:none}
+#gl.grabbing{cursor:grabbing}
+#gl.pointer{cursor:pointer}
+.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%)}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:0}
+/* All caps only for short overline labels that name a section or field (5–12% tracking), never for titles, buttons, navigation or sentences. */
+.caps{text-transform:uppercase;letter-spacing:.1em;font-size:11px}
+
+/* HUD */
+.hud{position:fixed;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;pointer-events:none;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.hud > *{pointer-events:auto}
+.hud-top{top:0;align-items:flex-start;padding-top:calc(18px + env(safe-area-inset-top,0px))}
+.hud-bottom{bottom:0;background:linear-gradient(to bottom,transparent,var(--bg) 75%);padding-top:40px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+.brand{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:none;border:0;padding:0;margin:0;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.brand:hover b{color:var(--amber)}
+.brand:focus-visible{outline:2px solid var(--amber);outline-offset:4px;border-radius:2px}
+.brand .mono{color:var(--muted)}
+.brand b{font-family:var(--title);font-weight:var(--title-weight);font-size:26px;line-height:1;letter-spacing:var(--title-track)}
+.chip{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;transition:border-color .2s,color .2s}
+.chip:hover,.chip[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+.chip:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.now{display:flex;flex-direction:column;gap:4px;min-width:0}
+.now .mono{color:var(--p-accent);transition:color .4s}
+.now b{font-family:var(--title);font-weight:var(--title-weight);font-size:clamp(36px,6.4vw,68px);line-height:1;letter-spacing:var(--title-track);padding-bottom:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now span.cat{color:var(--muted);font-size:14px}
+.count{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-variant-numeric:tabular-nums;flex-shrink:0}
+.count .num{font-size:13px;color:var(--ink)}
+.count .genre{color:var(--p-accent);transition:color .4s}
+.crates{position:fixed;z-index:5;left:max(20px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;
+  border-left:1px solid var(--line);padding-left:4px}
+.crate{display:flex;align-items:baseline;gap:6px;background:none;border:0;border-radius:3px;padding:7px 10px;cursor:pointer;color:var(--muted);
+  font-family:var(--sans);font-size:14px;font-weight:500;letter-spacing:0;text-align:left;white-space:nowrap;transition:color .2s,background-color .2s}
+.crate sup{font-family:var(--mono);font-size:10px;opacity:.7}
+.crate:hover{color:var(--ink)}
+.crate[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+/* The featured crate is the only accented one: amber text, set apart from the regular crates by a gap.
+   Selected, it fills with amber instead of the ink fill the other crates use. */
+.crate.is-featured{color:var(--amber);margin-bottom:10px}
+.crate.is-featured:hover{color:var(--ink)}
+.crate.is-featured[aria-pressed="true"]{background:var(--amber);color:var(--bg)}
+.crate-star{width:13px;height:13px;fill:currentColor;flex:none;align-self:center}
+.crate:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.count small{color:var(--muted);font-size:11px}
+
+/* lil-gui panel */
+.lil-gui.root{--background-color:#151412;--widget-color:#2a2824;--hover-color:#34312c;--focus-color:#3c3832;--number-color:#e9a23b;--string-color:#d8cfbf;--text-color:#eee8dd;--title-background-color:#1c1a17;--font-family:var(--mono);--font-size:11px;
+  position:fixed!important;top:calc(64px + env(safe-area-inset-top,0px))!important;right:max(16px,env(safe-area-inset-right,0px))!important;max-height:calc(100% - 150px);overflow:auto;border:1px solid var(--line);border-radius:6px;z-index:20}
+.lil-gui.root.off{display:none}
+
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#1c1a17;border:1px solid var(--line);color:var(--ink);padding:8px 14px;border-radius:6px;font-family:var(--mono);font-size:12px;z-index:40}
+.param-out{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:520px;margin-inline:auto;background:#151412;border:1px solid var(--line);border-radius:6px;padding:12px;z-index:41;display:flex;flex-direction:column;gap:8px}
+.param-out textarea{width:100%;height:180px;background:#0d0c0b;color:var(--ink);border:1px solid var(--line);font-family:var(--mono);font-size:11px;padding:8px;box-sizing:border-box}
+
+/* project page */
+#detail{position:fixed;inset:0;overflow-y:auto;background:var(--bg);z-index:30;opacity:0;-webkit-overflow-scrolling:touch}
+.d-inner{max-width:1120px;margin:0 auto;box-sizing:border-box;
+  padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+  padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(64px + env(safe-area-inset-bottom,0px))}
+.d-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.d-bar .mono{color:var(--muted)}
+.d-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,72px);align-items:end;padding-block:clamp(32px,6vw,72px)}
+.d-cover{position:relative;margin:0;aspect-ratio:1;max-width:100%;margin-right:18%}
+.d-cover img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.d-vinyl{position:absolute;top:4%;width:92%;aspect-ratio:1;right:-26%;border-radius:50%;z-index:0;
+  background:
+    radial-gradient(circle,#000 0 1.2%,var(--p-accent) 1.3% 16%,#0a0a0a 16.4% 17%,transparent 17.2%),
+    repeating-radial-gradient(circle,#111 0 1px,#1a1a1a 1.5px 3px),
+    #111;
+  box-shadow:0 20px 40px rgba(0,0,0,.6);animation:spin 5s linear infinite}
+.d-vinyl::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 30deg,transparent 0 8%,rgba(255,255,255,.09) 12%,transparent 18% 52%,rgba(255,255,255,.07) 58%,transparent 64%)}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Project header: one serif title, everything else in the sans. Three text sizes below the title: 14 / 16 / 22.
+   Order = importance: name → what it is → recognition and where it happened → details. */
+.d-head{display:flex;flex-direction:column;gap:32px;min-width:0}
+.d-intro{display:flex;flex-direction:column;gap:12px;min-width:0}
+.d-credit{margin:0;font-size:16px;line-height:1.5;color:var(--muted)}
+.d-context{color:var(--muted)}
+.d-head h1{margin:0;font-family:var(--title);font-weight:var(--title-weight);font-size:clamp(56px,9.5vw,128px);line-height:.95;letter-spacing:var(--title-track);text-wrap:balance;overflow-wrap:anywhere}
+.d-size{align-self:flex-start;font-size:13px;line-height:1;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+.d-sub{margin:0;font-size:22px;line-height:1.35;color:var(--ink);max-width:28ch}
+.d-award{font-weight:600;color:var(--p-accent)}
+.d-meta{display:flex;flex-direction:column;gap:14px;margin:0}
+.d-meta div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.d-meta dt{font-size:14px;color:var(--muted)}
+.d-meta dd{margin:0;font-size:16px;line-height:1.45;color:var(--ink)}
+.watch{align-self:flex-start;font-family:var(--sans);font-size:15px;font-weight:600;letter-spacing:0;color:var(--bg);background:var(--p-accent);border-radius:999px;padding:10px 16px;text-decoration:none;transition:filter .2s}
+.watch:hover{filter:brightness(1.12)}
+.watch:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.d-film{margin-bottom:56px}
+/* Film: a click-to-load facade. The poster costs nothing until someone presses play; if the player doesn't
+   check in within a few seconds (blocked, offline, embedding disabled) the frame turns into a clear way out. */
+.film-frame{position:relative;aspect-ratio:16/9;max-width:100%;background:#000;border-radius:6px;overflow:hidden}
+.film-poster{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:#000;cursor:pointer;display:grid;place-items:center;color:#fff;font:inherit}
+.film-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(28px) saturate(1.15) brightness(.5);transform:scale(1.2)}
+.film-play{position:relative;width:76px;height:76px;border-radius:50%;background:var(--p-accent);display:grid;place-items:center;transition:transform .2s}
+.film-play svg{width:26px;height:26px;margin-left:4px;fill:var(--bg)}
+.film-poster:hover .film-play{transform:scale(1.06)}
+.film-poster:focus-visible{outline:2px solid var(--p-accent);outline-offset:-4px}
+.film-label{position:absolute;left:24px;bottom:20px;font-size:16px;color:#fff}
+.film-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.film-fallback{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:12px;padding:clamp(20px,5vw,48px);background:rgba(13,12,11,.55)}
+.film-fb-title{margin:0;font-family:var(--title);font-weight:var(--title-weight);letter-spacing:var(--title-track);font-size:clamp(26px,3.2vw,38px);color:#fff}
+.film-fb-text{margin:0;font-size:16px;line-height:1.5;color:#e4ded3;max-width:44ch}
+.film-note{margin:12px 0 0;font-size:14px;color:var(--muted)}
+.film-note a{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.film-note a:hover{color:var(--ink)}
+[hidden]{display:none!important}
+.d-tracks{padding-top:8px}
+/* About me record: section name in the serif on the left, entries on the right.
+   Role carries the weight, organisation follows in regular, dates sit quietly at the end of the line. */
+.d-lede{margin:0;font-size:16px;line-height:1.6;color:#cfc8bc;max-width:46ch}
+.d-links{margin:0;display:flex;flex-wrap:wrap;gap:20px;font-size:16px}
+.d-links a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.d-links a:hover{color:var(--p-accent);text-decoration-color:currentColor}
+.d-resume{display:flex;flex-direction:column;gap:64px;padding-top:8px}
+.r-sec{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px 40px}
+.r-sec h2{margin:0;font-family:var(--title);font-weight:var(--title-weight);letter-spacing:var(--title-track);font-size:26px;line-height:1.15}
+.r-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:28px}
+.r-sec.compact .r-list{gap:14px}
+.r-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 24px}
+.r-title{margin:0;font-size:16px;line-height:1.45;color:var(--ink);min-width:0}
+.r-title strong{font-weight:600;color:var(--p-accent)}   /* the line's anchor: the organisation, or the prize in Recognition */
+.r-when{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.r-notes{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;max-width:64ch}
+.r-notes li{position:relative;padding-left:18px;font-size:15px;line-height:1.6;color:#cfc8bc}
+.r-notes li::before{content:"";position:absolute;left:2px;top:.68em;width:5px;height:5px;border-radius:50%;background:var(--muted)}
+.r-rec{margin-left:8px;padding:0;border:0;background:none;font:inherit;font-size:14px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.r-rec:hover{color:var(--p-accent);text-decoration-color:currentColor}
+.r-rec:focus-visible{outline:2px solid var(--p-accent);outline-offset:2px}
+.d-tracks h2{margin:0 0 20px;color:var(--muted);font-weight:500}
+.d-tracks ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.d-tracks li{display:grid;grid-template-columns:56px minmax(0,220px) minmax(0,1fr);gap:20px;padding-block:22px;border-bottom:1px solid var(--line);align-items:baseline}
+.d-tracks .no{font-family:var(--mono);color:var(--p-accent);font-size:13px}
+.d-tracks h3{margin:0;font-family:var(--title);font-weight:var(--title-weight);font-size:26px;line-height:1.15;letter-spacing:var(--title-track)}
+.d-tracks p{margin:0;max-width:62ch;line-height:1.7;font-size:15px;color:#cfc8bc}
+.d-gallery{display:flex;flex-direction:column;gap:12px;margin-top:64px}
+.d-gallery img{display:block;width:100%;height:auto;max-width:100%;border-radius:4px;background:#1a1917}
+.d-next{display:flex;justify-content:flex-end;align-items:center;gap:16px;flex-wrap:wrap;padding-top:40px}
+.d-next button,.d-bar button{font-family:var(--sans);font-size:15px;font-weight:600;background:none;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:10px 18px;cursor:pointer;transition:border-color .2s,color .2s}
+.d-next button:hover,.d-bar button:hover{border-color:var(--p-accent);color:var(--p-accent)}
+.d-next .mono{color:var(--muted)}
+@media (max-width:980px){
+  .crates{top:calc(70px + env(safe-area-inset-top,0px));transform:none;left:0;right:0;flex-direction:row;overflow-x:auto;border-left:0;scrollbar-width:none;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .crates::-webkit-scrollbar{display:none}
+  .crate{flex:none;border:1px solid var(--line);border-radius:999px}
+  .crate.is-featured{margin-bottom:0;margin-right:8px;border-color:var(--amber)}
+  .lil-gui.root{top:calc(116px + env(safe-area-inset-top,0px))!important}
+}
+@media (max-width:760px){
+  .r-sec{grid-template-columns:minmax(0,1fr)}
+  .d-hero{grid-template-columns:minmax(0,1fr);align-items:start}
+  .d-tracks li{grid-template-columns:44px minmax(0,1fr);gap:8px 14px}
+  .d-tracks li p{grid-column:2}
+  .now b{font-size:36px}
+}
+@media (prefers-reduced-motion:reduce){.d-vinyl{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="gl" tabindex="0" aria-label="3D record stack: scroll to browse projects, click a record to open it"></canvas>
+<div class="vignette"></div>
+
+<header class="hud hud-top">
+  <button class="brand" id="brandBtn" type="button" aria-label="About me"><span class="mono">2018—2026</span><b>Rylee</b></button>
+</header>
+<nav class="crates" id="crates" aria-label="Filter records by category"></nav>
+<footer class="hud hud-bottom">
+  <div class="now"><b id="nowTitle">Voca.AI</b></div>
+  <div class="count mono"><small>Scroll down and click</small></div>
+</footer>
+
+<section id="detail" hidden aria-label="Project details">
+  <div class="d-inner">
+    <nav class="d-bar"><button id="backBtn" type="button">← Back to the shelf</button></nav>
+    <div class="d-hero">
+      <figure class="d-cover"><div class="d-vinyl"></div><img id="dCover" alt=""></figure>
+      <div class="d-head">
+        <div class="d-intro">
+          <span class="d-size" id="dSize" hidden>Single · small project</span>
+          <h1 id="dTitle"></h1>
+          <p class="d-sub" id="dSub"></p>
+          <p class="d-lede" id="dLede" hidden></p>
+          <p class="d-credit"><strong class="d-award" id="dAward" hidden></strong><span class="d-context" id="dContext"></span></p>
+        </div>
+        <dl class="d-meta" id="dMeta"></dl>
+        <p class="d-links" id="dLinks" hidden></p>
+      </div>
+    </div>
+    <section class="d-resume" id="dResume" hidden aria-label="About me"></section>
+    <section class="d-film" id="dFilm" hidden></section>
+    <section class="d-tracks" aria-label="Project process"><ol id="dTracks"></ol></section>
+    <section class="d-gallery" id="dGallery" hidden aria-label="Portfolio pages"></section>
+    <div class="d-next"><button id="nextBtn" type="button"></button></div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/dist/lil-gui.umd.min.js"></script>
+<script>
+(async function(){
+/* ============================================================
+   1. PROJECT DATA: Rylee's work, from youtube.com/@rylee5233 and the CV
+   yt:      YouTube video id (optional; adds the "Watch the film" button and the embedded player)
+   period, role, award: optional; shown on the project page when present
+   cover:   optional image URL (or data: URI); leave it out to get a generated retro cover
+   colors:  [cover background, cover foreground, accent]   spine: [spine background, spine text]
+   style:   0-5, which generated cover layout to use
+   size:    'single' marks a small project; its page shows a small tag above the title
+   ============================================================ */
+/* Pages from Rylee's PDF portfolio, shown untouched under the matching project (files in portfolio/). */
+const PAGE_DIMS = {"1":[2000,1114],"2":[2000,1114],"3":[2000,1114],"4":[2000,1114],"5":[2000,1114],"6":[2000,1114],"7":[1998,1114],"8":[2000,1114],"9":[2000,1114],"10":[2000,1327],"11":[2000,1327],"12":[2000,1327],"13":[2000,1327],"14":[2000,1327],"15":[2000,1327],"16":[2000,1327],"17":[2000,1327],"18":[2000,1327],"19":[2000,1327],"20":[2000,1327],"21":[2000,1327],"22":[2000,1327],"23":[2000,1327],"24":[2000,1327],"25":[2000,1329],"26":[2000,1329],"27":[2000,1329],"28":[2000,1329],"29":[2000,1329],"30":[2000,1036],"31":[2000,1308],"32":[2000,1416],"33":[2000,1627],"34":[2000,1485],"35":[2000,2230],"36":[2000,1483],"37":[2000,1561],"38":[2000,1561],"39":[2000,1485],"40":[2000,1539],"41":[2000,980],"42":[2000,1088],"43":[2000,1377],"44":[2000,1157],"45":[2000,1255],"46":[2000,1255],"47":[2000,1255],"48":[2000,1011],"49":[2000,1230],"50":[2000,1291],"51":[2000,7760]};
+/* Crates: the category dividers on the shelf. A project's `genre` is one of these ids, or a list of them
+   when it belongs in several crates (e.g. genre:['web3d','ux']). A crate may list `order` (project titles) to set its own sequence. */
+const GENRES = [
+  {id:'all',      name:'All records',          note:'Everything, newest first'},
+  {id:'picks',    name:'My picks',             note:'Start here', featured:true, order:['Voca.AI','Echo Flee','Vision','Cloud','AaltoAI']},
+  {id:'ai',       name:'AI & Agents',          note:'Agents, LLM products, AI strategy'},
+  {id:'physical', name:'Physical & Wearable',  note:'Things you touch, wear or ride'},
+  {id:'xr',       name:'XR & Games',           note:'VR, AR and play'},
+  {id:'web3d',    name:'Web & 3D',             note:'Sites, WebGL and creative tools'},
+  {id:'viz',      name:'Data Visualization & Sound', note:'Visualizing data and music'},
+  {id:'ux',       name:'UX & Product',         note:'Research-led app and product design'},
+  {id:'bsides',   name:'B-Sides',              note:'Early type and UX studies'},
+];
+const PROJECTS = [
+  /* The About me record: Rylee's introduction, work, study and awards. It opens its own layout instead of a project page. */
+  {title:'About me', about:true, genre:'about', sub:'Interaction designer and front-end engineer', cat:'Work · Study · Awards', year:'2018—2026',
+   lede:'HCI master’s student at Aalto University and KTH, and UX engineer at Nokia. Before that, two years building Web3D campaigns for hundreds of millions of people at Alibaba.',
+   links:[['YouTube','https://www.youtube.com/@rylee5233'],['GitHub','https://github.com/Ryleeing']],
+   colors:['#efe9df','#141414','#e9a23b'], spine:['#141414','#efe9df'], style:6, tracks:[],
+   milestones:[[2018,'CUC'],[2021,'Alibaba intern'],[2022,'Alibaba'],[2024,'Aalto × KTH'],[2025,'Nokia'],[2026,'AaltoAI']],
+   resume:[
+     {h:'Experience', items:[
+       {role:'UX Engineer Intern', org:'Nokia', when:'Jan 2025 – now', notes:[
+         'Design and build LTMT, a lightweight real-time monitoring and troubleshooting platform for Nokia’s Cloud Mobile Gateway and Cloud Mobility Manager.',
+         'Interaction design, wireframes, prototypes, usability testing and design handoff, plus components, bug fixes and code reviews in TypeScript.',
+         'Started at three days a week; full time since July 2025.']},
+       {role:'Design Lead', org:'AaltoAI', when:'Jun 2026 – now', note:'Volunteer', rec:'AaltoAI', notes:[
+         'Redesigned and rebuilt the website and digital brand in Next.js, and coordinate design materials for events.']},
+       {role:'Front-End Engineer', org:'Alibaba Group', when:'Jul 2022 – May 2024', notes:[
+         'Co-developed high-traffic Web3D and interactive campaigns, including Ant Forest and the Double 11 Red Envelope campaign, on platforms with 500M+ daily active users.',
+         'Product lead for the D2 Conference interactive space: requirements, roadmap, interaction design and delivery with cross-functional teams.',
+         'Co-developed Art Desk, a workflow from 3D asset production to web engines, and a set of Unity and Maya tools for artists.']},
+       {role:'Front-End Engineer Intern', org:'Alibaba Group', when:'Jun – Sep 2021', notes:[
+         'WebGL, 3D interactive games, and art-pipeline and shader material editors, built with React, Three.js and TypeScript.']},
+     ]},
+     {h:'Education', items:[
+       {role:'MSc Human-Computer Interaction and Design', org:'Aalto University and KTH', when:'Sep 2024 – now', notes:[
+         'EIT double degree in ICT Innovation, with a minor in innovation and entrepreneurship management.',
+         'Courses include collaborative evaluation of interactive systems, user-centered product and service design, information visualization, emergent user interfaces, and digital business management.']},
+       {role:'Digital Media, Network and Intelligent Media track', org:'Communication University of China', when:'Sep 2018 – Jun 2022', notes:[
+         'Minor in Network and New Media, 2019–2021.',
+         'Courses include computer organization, C and C++, data structures and algorithms, mobile internet applications, and intelligent HCI.']},
+       {role:'AI for start-ups and scale-ups', org:'University of Glasgow, summer school', when:'Aug – Sep 2025'},
+       {role:'Introduction to machine learning and AI', org:'University of California, Irvine', when:'Feb – Mar 2022'},
+       {role:'AI internship programme, Business AI Lab', org:'Nanyang Technological University', when:'Jan – Feb 2022'},
+     ]},
+     {h:'Recognition', compact:true, items:[
+       {role:'2nd Prize', org:'{Tech:Euro} Google DeepMind Agentic AI Hackathon, Stockholm', when:'Oct 2026', rec:'Voca.AI'},
+       {role:'Selected participant', org:'EuroTech–Hong Kong Hackathon, Munich', when:'Jul 2026'},
+       {role:'1st Place', org:'AI for Good Things Hackathon, Founder OS track', when:'May 2026', rec:'Sprint Buddy'},
+       {role:'Participant', org:'“Automate Everything!” AI Agent Hackathon', when:'Mar 2026'},
+       {role:'Top 5', org:'Junction 2025, Snapchat challenge', when:'Nov 2025', rec:'AiR Artist'},
+       {role:'1st Place', org:'Porta Aperta generative AI strategy, team project', when:'Aug 2025', rec:'Porta Aperta'},
+       {role:'1st Prize', org:'Beijing Digital Media Competition', when:'2022', rec:'Echo Flee'},
+       {role:'Excellent Graduation Project award', org:'Communication University of China', when:'2022', rec:'Echo Flee'},
+       {role:'2nd Place', org:'Alibaba Front-End Trainee Program, final round', when:'2021', rec:'Tap Your Tap'},
+       {role:'Municipal-level project', org:'Student Innovation and Entrepreneurship Training Program', when:'2019', rec:'Artist Graph'},
+     ]},
+     {h:'Research and teaching', items:[
+       {role:'Founder and project lead', org:'DIY Study Abroad Lantern Program', when:'Nov 2023 – now'},
+       {role:'Instructor', org:'Alibaba terminal technology programme', when:'Oct 2022', notes:[
+         'Taught the fundamentals of 2D graphics in front-end development.']},
+       {role:'Research Assistant, AI data analysis', org:'State Key Laboratory of Data Analysis, CUC', when:'Mar 2019 – Jun 2021', notes:[
+         'Research on emotion analysis, data visualization and large language models.']},
+     ]},
+     {h:'Off the clock', leadRole:true, items:[
+       {role:'Piano', org:'NetEase Music', notes:['My piano videos have 90,000+ plays.']},
+       {role:'RedNote', org:'小红书', notes:['A travel-tips account with 6,000+ followers and 280K+ likes.']},
+       {role:'Also', notes:['Tennis, padel, hiking, climbing, camping, photography and guitar.']},
+     ]},
+   ]},
+  {title:'Voca.AI', gh:'https://github.com/Ryleeing/Voca-AI-Immersive-language-learning', genre:['picks','ai'], sub:'Learn a language by living it', cat:'AI Language Learning', year:2026, period:'Sep 2026 – now',
+   context:'{Tech:Euro} Google DeepMind Agentic AI Hackathon, Stockholm', role:'UI, interaction and voice-flow design',
+   medium:'React · TypeScript · Node.js · WebSocket · Gemini Live API', award:'2nd Prize',
+   film:'3:16', yt:'aF4Hp9l89TI',
+   colors:['#1b1464','#f4f1ff','#ffd23f'], spine:['#ffd23f','#1b1464'], style:0, tags:['AI Agents','Gemini Live','Voice UX','Language Learning'],
+   tracks:[['A1','Idea','An immersive language-learning platform. Instead of memorizing vocabulary and grammar, you practice real-life situations by talking with AI characters, and build the confidence to speak naturally.'],
+           ['A2','Design','Designed the interface, the learning scenarios, and the voice interaction flows and feedback for real-time conversations. Refined the experience through rounds of iteration on flows, contextual hints, animated transitions and in-game feedback.'],
+           ['B1','Build','Gemini Live powers real-time spoken conversations. AI characters answer in context and judge whether you completed the task. The journey runs through animated Paris scenes with hints and optional side conversations.'],
+           ['B2','Result','Second Prize at the {Tech:Euro} Google DeepMind Agentic AI Hackathon in Stockholm.']]},
+  {title:'Cloud', genre:['picks','physical'], sub:'Physical interaction', cat:'Physical Interaction', year:2026, context:'Physical interaction course', medium:'Physical computing', film:'2:11', yt:'G4dGJgMq8wg',
+   colors:['#dfe6ec','#1d2733','#5b8def'], spine:['#1d2733','#dfe6ec'], style:3, tags:['Physical Interaction','Course Project'],
+   tracks:[['A1','The piece','A physical interaction project made for a course in 2026.'],
+           ['A2','The film','The video shows the piece being built and used.']]},
+  {title:'Scent Greeting', size:'single', genre:'physical', sub:'Clothes that greet back', cat:'Wearable Interaction', year:2026, context:'Physical interaction course, 3-hour demo', medium:'Sustainable materials', film:'0:07', yt:'bo46GTKcwr0',
+   colors:['#e8efe4','#203024','#7fc37a'], spine:['#203024','#e8efe4'], style:2, tags:['Wearable','Physical Interaction','Rapid Prototype'],
+   tracks:[['A1','Idea','When you greet a friend, your clothes respond by releasing a cool breeze and a scent.'],
+           ['A2','Constraint','Built as a course demo in three hours, using only a small set of sustainable materials.']]},
+  {title:'Head Jump', size:'single', genre:'physical', sub:'A two-player body controller', cat:'Co-op Game', year:2026, context:'Physical interaction course', medium:'Conductive materials', film:'0:19', yt:'X5MjxCz3U_Q',
+   colors:['#ff5a36','#1c0f0a','#ffe14d'], spine:['#1c0f0a','#ff5a36'], style:4, tags:['Physical Interaction','Game','Conductive'],
+   tracks:[['A1','Idea','An exploration of unusual buttons, using conductive materials as switches.'],
+           ['A2','Controls','Your feet steer left and right. To jump, you tap your friend’s head.']]},
+  {title:'Chef Logic', size:'single', gh:'https://github.com/Ryleeing/Chef-Logic_AI-Agent-hackthon', genre:'ai', sub:'An agent in a few hours', cat:'AI Agent', year:2026, context:'Aaltoes AI agent hackathon', medium:'AI agent', film:'2:50', yt:'I6o8TifBuA0',
+   colors:['#1f3d2b','#f2ead8','#ff7a3d'], spine:['#ff7a3d','#1a120b'], style:1, tags:['AI Agent','Hackathon','Aaltoes'],
+   tracks:[['A1','The brief','Build a working AI agent within the time limit of the Aaltoes AI agent hackathon.'],
+           ['A2','The result','Chef Logic, a cooking agent put together in a couple of hours and demoed in the film.']]},
+  {title:'AaltoAI', gh:'https://github.com/Ryleeing/AaltoAI_Wesbsite_Redesign', genre:['picks','web3d','ux'], sub:'Website redesign', cat:'Web Design & Build', year:2026, period:'Summer 2026', context:'AaltoAI', medium:'Website', film:'0:45', yt:'4d_mnkJEDUQ',
+   colors:['#0f0f12','#f3f3f3','#3d5afe'], spine:['#3d5afe','#ffffff'], style:4, tags:['Web Design','Front-end','Redesign'],
+   tracks:[['A1','The job','Redesign and rebuild the AaltoAI website over the summer.'],
+           ['A2','The process','Many rounds of designing, discussion and iteration with the team.'],
+           ['B1','Launch','The new site is live. The film compares the old and new versions.']]},
+  {title:'Sprint Buddy', gh:'https://github.com/Ryleeing/SprintBuddy-ai-for-good-hackthon', genre:'ai', sub:'A founder coach in your pocket', cat:'AI Companion', year:2026, period:'May 2026 · 48 hours',
+   context:'AI for Good Things Hackathon · Founder OS track', medium:'RAG · OpenClaw · AI agents · TypeScript · Astro · SQLite · Docker',
+   award:'1st Place · €1,000 prize',
+   colors:['#f2efe8','#15171c','#ff4f2e'], spine:['#ff4f2e','#15171c'], style:5, tags:['RAG','AI Agents','Human in the Loop','Hackathon Winner'],
+   tracks:[['A1','Brief','An AI companion for Aalto Founder Sprint participants: a coach available 24/7 through their 15-week journey. Built in 48 hours.'],
+           ['A2','How it works','RAG over the advisors’ materials, OpenClaw and agent workflows give founders contextual guidance and daily check-ins, while organizers get human-in-the-loop insights.'],
+           ['B1','Build','A TypeScript and Astro web app with SQLite persistence, packaged with Docker.'],
+           ['B2','Result','Won the Founder OS track and the €1,000 Aalto Founder Sprint prize.']]},
+  {title:'AiR Artist', gh:'https://github.com/Ryleeing/AiR_Artist-WearYourImagination', genre:'xr', sub:'Draw with AR guides', cat:'AR Hackathon', year:2025, period:'Nov 2025', context:'Junction 2025 · Snapchat challenge', medium:'Snapchat AR glasses',
+   award:'Top 5 · Snapchat challenge', film:'2:01', yt:'2bojvEaal_k',
+   colors:['#fff35c','#111111','#ff3d8b'], spine:['#111111','#fff35c'], style:2, tags:['AR','Snapchat Spectacles','Hackathon'],
+   tracks:[['A1','Idea','AR-assisted drawing: the glasses project virtual guide lines onto the real world.'],
+           ['A2','Interaction','You trace the projection with a real pen, so digital guidance meets ordinary hand drawing.'],
+           ['B1','Result','Built in two days at Junction 2025 and placed in the top 5 of the Snapchat challenge.']]},
+  {title:'Porta Aperta', genre:'ai', sub:'Generative AI strategy for a nonprofit', cat:'AI Strategy · UX Research', year:2025, period:'Aug 2025',
+   context:'Team project with Porta Aperta, Modena', role:'UX research · AI workflow design · strategy', medium:'Evaluations · interviews · workshops · AI workflows',
+   award:'1st Place among all teams',
+   colors:['#7c2d12','#fbeee2','#f4b860'], spine:['#f4b860','#3b1306'], style:3, tags:['Generative AI','UX Research','Service Design','Nonprofit'],
+   tracks:[['A1','Context','Porta Aperta is a historic nonprofit in Modena, Italy, offering food, shelter, legal aid and integration programs. Manual workflows, volunteer coordination and donor engagement were slowing it down.'],
+           ['A2','Research','Ran inspection-based and user-based evaluations, usability tests and user interviews, and organized a workshop with the organization.'],
+           ['B1','Strategy','Designed targeted AI workflows to cut manual work, and contributed to the roadmap, business impact assessment and ethical risk analysis. Presented the full proposal to an academic panel and industry mentors.'],
+           ['B2','Result','Projected 58% time savings and about €432,000 in annual cost savings. Awarded first place for innovation, impact and feasibility.']]},
+  {title:'VibeRide', genre:'physical', sub:'Navigation you feel', cat:'Wearable Interaction', year:2025, context:'Interaction design project', medium:'Haptics', film:'2:30', yt:'m1dZxFnZO50',
+   colors:['#0e2b25','#e8f3ee','#2de38c'], spine:['#2de38c','#0b1b17'], style:1, tags:['Haptics','Cycling','Wearable'],
+   tracks:[['A1','Problem','Checking a phone map while cycling is distracting and unsafe.'],
+           ['A2','Idea','Silent, eyes-free guidance through vibration: when your right hand vibrates, you turn right.']]},
+  {title:'Company Map 3D', gh:'https://github.com/Ryleeing/Shenzhen_University_Lab_Data_Visualization', genre:'web3d', sub:'Hundreds of companies in space', cat:'3D Data Visualization', year:2024, context:'Research lab, Shenzhen University', medium:'Three.js', film:'0:22', yt:'urmGLijnHA4',
+   colors:['#0b1426','#e6ecff','#ffb547'], spine:['#e6ecff','#0b1426'], style:4, tags:['Three.js','Data Viz','Research'],
+   tracks:[['A1','Brief','An interactive 3D visualization for a Shenzhen University research lab, exploring data from hundreds of companies.'],
+           ['A2','Design','Companies are placed in a 3D space, and colors mark the pattern or group each one belongs to. Hovering a point shows its details in real time.'],
+           ['B1','Note','The film is an early demo with test data. The final version is more refined, but its dataset cannot be shared.']]},
+  {title:'Pathpal', genre:'ux', pages:[30,51], sub:'Make friends on the road', cat:'Mobile App · UX', year:2023, context:'UX research and design project · 2 weeks',
+   role:'Researcher · designer', medium:'User research · prototyping',
+   colors:['#ffe14d','#161616','#161616'], spine:['#ffe14d','#161616'], style:0, tags:['UX Research','Mobile','Prototyping'],
+   tracks:[['A1','Problem','People travelling alone often spend long, dull stretches of their journey. Some would like to meet new people but find it socially awkward.'],
+           ['A2','Research','Ten remote, semi-structured interviews with people aged 20 to 40, plus competitor analysis, an affinity map, personas and a user journey map.'],
+           ['B1','Design','Pathpal connects people on the same journey: enter your trip, get matched with pathpals on the same transport and schedule, explore places and events at the destination, and message to meet in person.'],
+           ['B2','Iteration','Testing showed the navigation and background colors in the first version caused problems, so the visual design was revised.']]},
+  {title:'Shader Editor', size:'single', genre:'web3d', sub:'Materials in real time', cat:'Creative Tool', year:2023, context:'Independent project', medium:'Hilo3D.js', film:'0:53', yt:'PF0sJUmJ4Xc',
+   colors:['#2a1140','#f6e9ff','#ff8a5c'], spine:['#ff8a5c','#1a0b29'], style:3, tags:['WebGL','Shaders','Hilo3D.js'],
+   tracks:[['A1','What it is','A web-based shader editor built with Hilo3D.js, a JavaScript 3D engine similar to Three.js.'],
+           ['A2','What it does','Upload textures and adjust material parameters such as metalness and roughness, with the result updating live.']]},
+  {title:'D2 Conference', genre:'web3d', sub:'3D interactive space', cat:'3D Web Experience', year:2022, period:'Aug – Nov 2022',
+   context:'17th D2 Terminal Technology Conference, Alibaba', role:'Team lead · UX · scene design · 3D front-end', medium:'Figma · TypeScript · Hilo3D.js',
+   award:'7,000+ participants', film:'0:57', yt:'OMGoDpFTjHg',
+   colors:['#0e1b3a','#eef2ff','#ff6b4a'], spine:['#ff6b4a','#0e1b3a'], style:2, tags:['WebGL','Hilo3D.js','Event','Team Lead'],
+   tracks:[['A1','Brief','A 3D website for the 17th D2 Terminal Technology Conference, run by Alibaba’s Terminal Technology Committee, where attendees explore the conference content interactively.'],
+           ['A2','Features','A lottery and a mini-game that handed out event gifts, plus a showcase of sponsor logos linking to their sites. Anyone could join by scanning a QR code.'],
+           ['B1','Results','Over 7,000 participants, against a previous-year peak of about 2,500 page views. Time on site rose 25% and click-through rate grew tenfold.'],
+           ['B2','Today','The event is over, but the space still opens from a QR code in the Taobao app. Some back-end services have been retired.']]},
+  {title:'VR Graduation', genre:'xr', sub:'A ceremony in VR', cat:'VR Experience', year:2022, period:'May – Jun 2022', context:'Communication University of China',
+   role:'Developer · product designer', medium:'Virtual reality', film:'1:35', yt:'qjzZV8VVLUY',
+   colors:['#7a1f2b','#f6ece2','#f2c14e'], spine:['#f2c14e','#3a0d14'], style:5, tags:['VR','Multiplayer','Team Project'],
+   tracks:[['A1','Context','COVID-19 moved the 2022 graduation ceremony online, into a VR space built for the event by a team of teachers and students.'],
+           ['A2','My part','Developed the VR chat that made the online ceremony possible, and led design and development of Scene 1 (the entrance piano) and Scene 5 (the moon).'],
+           ['B1','Team','Worked with the team on gameplay design and user experience across the VR space.']]},
+  {title:'Echo Flee', genre:['picks','xr'], pages:[10,29], sub:'A VR music game', cat:'VR Game', year:2022, period:'Aug 2021 – May 2022', context:'Graduation project',
+   role:'Solo: design, modeling and development', medium:'HTC Vive Pro · Unity · Maya · VRTK',
+   award:'1st Prize · Beijing Digital Media Competition', film:'4:14', yt:'xRCs0Ucbs8s',
+   colors:['#101018','#f1eef8','#9b7bff'], spine:['#9b7bff','#0c0b14'], style:1, tags:['VR','Unity','Game Design','Audio Narrative'],
+   tracks:[['A1','Concept','A VR storytelling music game that breaks out of the usual rhythm-game format. What you play triggers different plot lines and new interactions.'],
+           ['A2','Build','Modeled the main interactive scene and the city night scene in Maya, wrote Unity shaders for effects like water waves, used particles to visualize sound, and built game logic and triggers with VRTK.'],
+           ['B1','Recognition','2022 Excellent Graduation Project award and first prize at the 2022 Beijing Digital Media Competition. Shown at the Meta Awakening 2022 graduation exhibition and the CUC intercollegiate exhibition of excellent works.']]},
+  {title:'Vision', genre:['picks','physical'], pages:[1,9], sub:'Interactive art installation', cat:'Physical Installation', year:2021, context:'Third-year project', medium:'Unity · Arduino', film:'2:01', yt:'j2rz8Gt-qF8',
+   colors:['#d9d4c7','#1b1b1b','#d6342b'], spine:['#d6342b','#fbf6ee'], style:2, tags:['Arduino','Unity','Installation'],
+   tracks:[['A1','Challenge','The most complex Arduino build I had made, and I was not sure I could finish it.'],
+           ['A2','System','Unity tracks people’s positions in real time and works out which way each servo should turn. Many servos are hidden in the top of the piece.']]},
+  {title:'Tap Your Tap', gh:'https://github.com/Ryleeing/Tap_your_tap', genre:'viz', sub:'Build your own sound space', cat:'Music Visualization Web', year:2021, period:'5-day sprint', context:'Alibaba Front-End Trainee Program',
+   role:'Team lead · PRD · prototyping · graphic design', medium:'Web', award:'2nd Place · final round',
+   film:'1:11', yt:'G2wNdOeGRQQ',
+   colors:['#12324a','#eaf4fb','#56d1ff'], spine:['#eaf4fb','#12324a'], style:0, tags:['Web Audio','Visualization','Team Lead'],
+   tracks:[['A1','Idea','A music visualization space on the web: it turns music into animation and lets you download the result as a video.'],
+           ['A2','Process','Led the team within a five-day window set by the end of the course. Wrote the PRD, built the prototypes and did all the graphic design.'],
+           ['B1','Result','Named an excellent project and shortlisted, then took second place in the final round of the Alibaba Front-End Trainee Program, in a field of 60 teams and 300 participants.']]},
+  {title:'Artist Graph', genre:'viz', sub:'Knowledge graph of Chinese artists', cat:'Data Visualization', year:2019, period:'Mar 2019 – Mar 2020', context:'Student innovation project',
+   role:'Product design · development · data visualization', medium:'JavaScript · D3.js · ECharts · SQL · PHP',
+   award:'Municipal-level innovation project', film:'1:09', yt:'BQQXBwQcz6E',
+   colors:['#efe9df','#1e1e1e','#b5452f'], spine:['#1e1e1e','#efe9df'], style:4, tags:['D3.js','ECharts','Knowledge Graph','Web Crawling'],
+   tracks:[['A1','Data','Web crawlers collect artist data, and relationship-extraction algorithms connect the artists into a graph.'],
+           ['A2','Interface','Front-end pages for a data dashboard, an artist relationship map and detailed artist profiles.'],
+           ['B1','Recognition','Selected as a municipal-level project in the Student Innovation and Entrepreneurship Training Program. Also my first real step into front-end and web visualization.']]},
+  {title:'Circuit Block', size:'single', genre:'bsides', sub:'A typeface from solder dots', cat:'Type Design', year:2019, context:'Second-year project', medium:'Typeface', film:'0:22', yt:'vTYQ_Km-hOE',
+   colors:['#0f3d2e','#e9f5ec','#e8b04b'], spine:['#e8b04b','#0f2a20'], style:5, tags:['Type Design','Lettering'],
+   tracks:[['A1','Inspiration','The tiny solder dots on circuit boards are a charming visual element.'],
+           ['A2','Result','An English display typeface built from that dot language.']]},
+  {title:'Meals & Food', size:'single', genre:['ux','bsides'], sub:'Smart fridge meal planning', cat:'UX Prototype', year:2018, context:'First-year HCI course', medium:'Prototype', film:'1:19', yt:'vZ5tu0H7zN4',
+   colors:['#f1e3cf','#3a2a1c','#e0603a'], spine:['#3a2a1c','#f1e3cf'], style:0, tags:['UX','Prototyping','HCI'],
+   tracks:[['A1','Goal','Help people manage meals and fridge space better, through a smart refrigerator system.'],
+           ['A2','Audience','People with fitness and health goals, including those following intermittent eating plans, who need food planning and storage design.']]},
+  {title:'Music Visualizer', size:'single', genre:'viz', sub:'Sound as water waves', cat:'Code Art', year:2018, context:'First-year coursework', medium:'Processing', film:'0:34', yt:'cOvHodRD8ro',
+   colors:['#06121c','#dff3ff','#38e1d8'], spine:['#38e1d8','#06121c'], style:1, tags:['Processing','Generative','Audio'],
+   tracks:[['A1','What it does','The left and right audio channels generate rotating, transparent water waves around a central sphere.'],
+           ['A2','Learning','One of my first-year coding assignments, made while working through The Nature of Code.']]},
+];
+{ let n = 0; for(const p of PROJECTS) p.no = p.about ? 'RY-00' : 'RY-' + String(++n).padStart(2,'0'); }
+const ABOUT = PROJECTS.findIndex(p => p.about);
+
+/* ============================================================
+   2. TWEAKABLE PARAMETERS (the panel edits these; paste the output of "Copy params JSON" here to make your tuning the default)
+   ============================================================ */
+const DEFAULTS = {
+  spacing:1.15, baseTilt:0, tiltPerItem:5, maxTilt:70, yawPerItem:0, depthPerItem:0.35,
+  centerScale:0.06, fadeStart:2.4, fadeRange:2.0, loop:false,
+  width:3.2, thickness:0.12, fitRatio:0.72,
+  fov:32, camDist:10, camY:0,
+  followSpeed:9, dragSens:3, wheelSens:1, inertia:0.92, snap:true, snapStrength:6, hoverLift:0.35,
+  openZ:2.2, openScale:1, openTilt:10, openYaw:-16, discOut:0.5, spinSpeed:1.2, openDuration:1,
+  ambient:0.6, key:1.0, rim:0.45, bg:'#0d0c0b', fog:true, typeface:'Instrument · serif + sans'
+};
+const PRESETS = {
+  'Perspective flip': {baseTilt:0, tiltPerItem:5, maxTilt:70, spacing:1.15, depthPerItem:0.35, yawPerItem:0},
+  'Uniform tilt': {baseTilt:16, tiltPerItem:0, maxTilt:70, spacing:1.05, depthPerItem:0.12, yawPerItem:0},
+  'Drum': {baseTilt:4, tiltPerItem:24, maxTilt:85, spacing:0.95, depthPerItem:0.7, yawPerItem:-5},
+};
+const STORE_KEY = 'vinyl-stack-params-v1';
+const P = Object.assign({}, DEFAULTS);
+try{
+  const saved = location.hash === '#tweak' ? JSON.parse(localStorage.getItem(STORE_KEY) || 'null') : null;
+  if(saved) for(const k in DEFAULTS) if(k in saved && typeof saved[k] === typeof DEFAULTS[k]) P[k] = saved[k];
+}catch(e){}
+
+const DEG = Math.PI/180;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const lerp = (a,b,t) => a + (b-a)*t;
+const clamp = (v,a,b) => Math.min(b, Math.max(a,v));
+let VIEW = PROJECTS.map((_, i) => i), genre = 'all';
+const vN = () => VIEW.length;
+const wrap = d => { const n = vN(); return ((d % n) + n*1.5) % n - n/2; };
+// a project can sit in more than one crate: genre is an id or a list of ids
+const inGenre = (p, id) => [].concat(p.genre).includes(id);
+const genreName = id => (GENRES.find(g => g.id === id) || GENRES[0]).name;
+
+/* wait for fonts before drawing covers so canvas text does not use a fallback */
+/* Type pairings, picked from designer roundups of Google Fonts. Switch them live in the tweak panel. */
+const TYPES = {
+  'Instrument · serif + sans':  {title:'"Instrument Serif", Georgia, "Times New Roman", serif', tw:400, track:'-.01em',
+                                 sans:'"Instrument Sans", "Helvetica Neue", Arial, sans-serif', mono:'"Geist Mono", ui-monospace, monospace'},
+  'Familjen Grotesk':           {title:'"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif', tw:700, track:'-.03em',
+                                 sans:'"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif', mono:'"IBM Plex Mono", ui-monospace, monospace'},
+  'Hanken Grotesk':             {title:'"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif', tw:700, track:'-.035em',
+                                 sans:'"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif', mono:'"DM Mono", ui-monospace, monospace'},
+};
+if(!TYPES[P.typeface]) P.typeface = DEFAULTS.typeface;
+let TY = TYPES[P.typeface];
+function setTypeVars(){
+  TY = TYPES[P.typeface] || TYPES[DEFAULTS.typeface];
+  const r = document.documentElement.style;
+  r.setProperty('--title', TY.title); r.setProperty('--title-weight', TY.tw); r.setProperty('--title-track', TY.track);
+  r.setProperty('--sans', TY.sans); r.setProperty('--mono', TY.mono);
+}
+async function loadType(){
+  const fam = f => f.split(',')[0];
+  try{
+    await Promise.race([
+      Promise.all([document.fonts.load(`${TY.tw} 80px ${fam(TY.title)}`), document.fonts.load(`400 40px ${fam(TY.sans)}`), document.fonts.load(`700 40px ${fam(TY.sans)}`), document.fonts.load(`500 30px ${fam(TY.mono)}`)]),
+      new Promise(r => setTimeout(r, 2500))
+    ]);
+  }catch(e){}
+}
+setTypeVars();
+await loadType();
+
+/* ============================================================
+   3. COVER / SPINE / VINYL TEXTURES (generated with Canvas)
+   ============================================================ */
+const noiseC = document.createElement('canvas'); noiseC.width = noiseC.height = 128;
+{ const g = noiseC.getContext('2d'), d = g.createImageData(128,128);
+  for(let i=0;i<d.data.length;i+=4){ const v = Math.random()*255; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; }
+  g.putImageData(d,0,0); }
+
+function font(g, weight, size, family, stretch){
+  g.font = `${weight} ${size}px ${family||TY.sans}`;
+  try{ g.fontStretch = stretch || 'normal'; }catch(e){}
+}
+function fitText(g, text, x, y, maxW, weight, size, stretch, align, family){
+  family = family || TY.title;
+  font(g, weight, size, family, stretch);
+  const w = g.measureText(text).width;
+  if(w > maxW){ size = size*maxW/w; font(g, weight, size, family, stretch); }
+  g.textAlign = align || 'left';
+  g.fillText(text, x, y);
+  return size;
+}
+function luminance(hex){ const c = new THREE.Color(hex); return 0.2126*c.r + 0.7152*c.g + 0.0722*c.b; }
+
+function drawCover(p){
+  const S = 1024, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'); const [bg, fg, ac] = p.colors;
+  g.fillStyle = bg; g.fillRect(0,0,S,S); g.textBaseline = 'alphabetic';
+  const T = p.title;
+  switch(p.style){
+    case 0: { // big stacked type
+      g.fillStyle = ac; for(let i=0;i<7;i++) g.fillRect(820 + i*22, 90, 10, 380);
+      g.fillStyle = fg; fitText(g, T, 64, 470, 720, TY.tw, 380, 'normal');
+      g.fillStyle = ac; g.fillRect(0, 610, S, 150);
+      g.fillStyle = bg; fitText(g, p.sub, 64, 728, 896, 600, 104, 'normal', 'left', TY.sans);
+      g.fillStyle = fg; font(g, 500, 30, TY.mono); g.fillText(`${p.cat}  /  ${p.year}`, 64, 930);
+      break; }
+    case 1: { // concentric rings
+      const cx = 640, cy = 420;
+      for(let k=16;k>=0;k--){ g.beginPath(); g.arc(cx, cy, 30 + k*34, 0, Math.PI*2); g.fillStyle = k%2 ? ac : bg; g.globalAlpha = k%2 ? 0.85 - k*0.03 : 1; g.fill(); }
+      g.globalAlpha = 1; g.beginPath(); g.arc(cx, cy, 30, 0, Math.PI*2); g.fillStyle = fg; g.fill();
+      g.fillStyle = fg; fitText(g, T, 64, 860, 760, TY.tw, 150, 'normal');
+      font(g, 500, 30, TY.sans); g.fillText(`${p.sub}`, 64, 930);
+      break; }
+    case 2: { // diagonal stripes + label box
+      g.save(); g.translate(S/2, S/2); g.rotate(-0.55); g.fillStyle = ac;
+      for(let x=-1000; x<1000; x+=150) g.fillRect(x, -1000, 62, 2000);
+      g.restore();
+      g.fillStyle = fg; g.fillRect(64, 600, 640, 300);
+      g.fillStyle = bg; fitText(g, T, 96, 760, 580, TY.tw, 150, 'normal');
+      font(g, 600, 40, TY.sans); g.fillText(`${p.cat}`, 96, 850);
+      break; }
+    case 3: { // sunset
+      g.save(); g.beginPath(); g.arc(512, 440, 270, 0, Math.PI*2); g.clip();
+      g.fillStyle = ac; g.fillRect(0,0,S,S);
+      g.fillStyle = bg; for(let k=0;k<9;k++){ const y = 470 + k*30; g.fillRect(0, y, S, 3 + k*2.6); }
+      g.restore();
+      g.strokeStyle = fg; g.globalAlpha = .25; g.lineWidth = 2;
+      for(let k=0;k<6;k++){ g.beginPath(); g.moveTo(0, 760 + k*k*6); g.lineTo(S, 760 + k*k*6); g.stroke(); }
+      g.globalAlpha = 1; g.fillStyle = fg; fitText(g, T, 512, 900, 860, TY.tw, 140, 'normal', 'center');
+      font(g, 500, 28, TY.mono); g.textAlign = 'center'; g.fillText(`${p.sub} · ${p.year}`, 512, 950); g.textAlign = 'left';
+      break; }
+    case 4: { // dot grid
+      g.fillStyle = fg;
+      for(let y=0;y<10;y++) for(let x=0;x<10;x++){
+        const r = 6 + 30*(0.5 + 0.5*Math.sin(x*0.7 + y*0.45 + 1.3));
+        g.beginPath(); g.arc(112 + x*89, 300 + y*68, Math.min(r, 32)*0.9, 0, Math.PI*2); g.fill();
+      }
+      g.fillStyle = bg; g.fillRect(0, 0, S, 250);
+      g.fillStyle = fg; fitText(g, T, 64, 190, 896, TY.tw, 160, 'normal');
+      font(g, 500, 26, TY.mono); g.fillText(`${p.cat}  ·  ${p.year}`, 64, 236);
+      break; }
+    case 6: { // about me: the years 2018–2026 drawn as grooves, each milestone marked on its ring
+      const cx = 610, cy = 650, r0 = 104, step = 23, R = 372;
+      g.fillStyle = fg; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.fill();          // the disc, part off the sleeve
+      for(let y = 0; y <= 8; y++){                                                         // one groove per year
+        g.strokeStyle = 'rgba(239,233,223,.16)'; g.lineWidth = 2;
+        g.beginPath(); g.arc(cx, cy, r0 + y*step, 0, Math.PI*2); g.stroke();
+      }
+      for(let r = r0 + 8*step + 14; r < R - 6; r += 5){ g.strokeStyle = 'rgba(239,233,223,.06)'; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2); g.stroke(); }
+      g.save(); g.globalCompositeOperation = 'lighter';                                   // a soft sheen across the vinyl
+      const sh = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+      sh.addColorStop(0, 'rgba(255,255,255,0)'); sh.addColorStop(.45, 'rgba(255,255,255,.07)'); sh.addColorStop(.55, 'rgba(255,255,255,0)');
+      g.fillStyle = sh; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI*2); g.fill(); g.restore();
+      const top = cy - (r0 + 8*step);
+      g.strokeStyle = ac; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy - r0 + 4); g.lineTo(cx, top - 26); g.stroke();   // the needle
+      for(const [year, place] of p.milestones){
+        const y = cy - (r0 + (year - 2018)*step);
+        g.fillStyle = ac; g.beginPath(); g.arc(cx, y, 6, 0, Math.PI*2); g.fill();
+        g.textBaseline = 'middle'; g.textAlign = 'right';
+        font(g, 600, 19, TY.sans); g.fillStyle = '#efe9df'; g.fillText(place, cx - 20, y);
+        const wp = g.measureText(place).width;
+        font(g, 500, 17, TY.mono); g.fillStyle = ac; g.fillText(String(year), cx - 30 - wp, y);
+        g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      }
+      g.fillStyle = ac; g.beginPath(); g.arc(cx, cy, r0 - 18, 0, Math.PI*2); g.fill();      // centre label
+      g.fillStyle = fg; g.beginPath(); g.arc(cx, cy, 9, 0, Math.PI*2); g.fill();
+      font(g, 500, 18, TY.mono); g.textAlign = 'center'; g.fillText('Side A', cx, cy - 26); g.fillText(p.year, cx, cy + 36); g.textAlign = 'left';
+      g.fillStyle = fg; fitText(g, T, 60, 205, 900, TY.tw, 190, 'normal');
+      font(g, 500, 28, TY.sans); g.fillStyle = fg; g.globalAlpha = .75; g.fillText(p.sub, 64, 256); g.globalAlpha = 1;
+      break; }
+    case 5: { // two-tone split + year
+      g.fillStyle = ac; g.fillRect(S/2, 0, S/2, S);
+      g.fillStyle = fg; font(g, TY.tw, 560, TY.title); g.textAlign = 'center';
+      g.fillText('’' + String(p.year).slice(2), 512, 640); g.textAlign = 'left';
+      fitText(g, T, 64, 880, 860, TY.tw, 120, 'normal');
+      font(g, 500, 28, TY.mono); g.fillText(`${p.sub}`, 64, 940);
+      break; }
+  }
+  // catalog number
+  g.fillStyle = p.style === 5 ? p.colors[1] : fg; font(g, 500, 24, TY.mono); g.textAlign = 'right';
+  g.globalAlpha = .8; g.fillText(`${p.no}  ·  33⅓`, S-56, 64); g.textAlign = 'left'; g.globalAlpha = 1;
+  // ring wear: the circle a record presses into its sleeve
+  g.save(); g.globalCompositeOperation = 'screen'; g.globalAlpha = .07; g.strokeStyle = '#fff'; g.lineWidth = 26;
+  g.beginPath(); g.arc(S/2, S/2, 455, 0, Math.PI*2); g.stroke(); g.restore();
+  // paper grain
+  g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = .1; g.fillStyle = g.createPattern(noiseC, 'repeat'); g.fillRect(0,0,S,S); g.restore();
+  return c;
+}
+
+function drawSpine(p){
+  const W = 2048, H = Math.max(24, Math.round(W * P.thickness / P.width));
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = p.spine[0]; g.fillRect(0,0,W,H);
+  g.fillStyle = p.spine[1]; g.textBaseline = 'middle';
+  const size = H*0.56;
+  font(g, 700, size, TY.sans); const a = `【${p.year}】${p.title}  `;
+  const wa = g.measureText(a).width;
+  font(g, 400, size, TY.sans); const b = p.cat;
+  const wb = g.measureText(b).width;
+  let x = (W - wa - wb)/2;
+  font(g, 700, size, TY.sans); g.fillText(a, x, H*0.54);
+  font(g, 400, size, TY.sans); g.fillText(b, x + wa, H*0.54);
+  return c;
+}
+
+function drawVinyl(p){
+  const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
+  g.fillStyle = '#0a0a0a'; g.fillRect(0,0,S,S);
+  for(let r=168; r<506; r+=2.2){ g.strokeStyle = `rgba(255,255,255,${0.02 + Math.random()*0.04})`; g.lineWidth = 1; g.beginPath(); g.arc(512,512,r,0,Math.PI*2); g.stroke(); }
+  for(const r of [240, 315, 390, 455]){ g.strokeStyle = 'rgba(0,0,0,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(512,512,r,0,Math.PI*2); g.stroke(); }
+  if(g.createConicGradient){
+    const cg = g.createConicGradient(0.5, 512, 512);
+    cg.addColorStop(0,'rgba(255,255,255,0)'); cg.addColorStop(.08,'rgba(255,255,255,.13)'); cg.addColorStop(.16,'rgba(255,255,255,0)');
+    cg.addColorStop(.5,'rgba(255,255,255,0)'); cg.addColorStop(.58,'rgba(255,255,255,.1)'); cg.addColorStop(.66,'rgba(255,255,255,0)'); cg.addColorStop(1,'rgba(255,255,255,0)');
+    g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = cg; g.beginPath(); g.arc(512,512,506,0,Math.PI*2); g.fill(); g.restore();
+  }
+  const ac = p.colors[2];
+  g.fillStyle = ac; g.beginPath(); g.arc(512,512,158,0,Math.PI*2); g.fill();
+  g.fillStyle = luminance(ac) > .45 ? '#111' : '#f6f2ea'; g.textBaseline = 'alphabetic';
+  fitText(g, p.title, 512, 470, 230, TY.tw, 44, 'normal', 'center');
+  font(g, 500, 18, TY.mono); g.textAlign = 'center';
+  g.fillText('Side A · 33⅓ rpm', 512, 590); g.fillText(`${p.no} · ${p.year}`, 512, 616); g.textAlign = 'left';
+  g.fillStyle = '#000'; g.beginPath(); g.arc(512,512,11,0,Math.PI*2); g.fill();
+  return c;
+}
+
+/* ============================================================
+   4. THREE.JS SCENE
+   ============================================================ */
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(P.fov, 1, 0.1, 200);
+const root = new THREE.Group(); scene.add(root);
+const amb = new THREE.AmbientLight(0xffffff, P.ambient);
+const keyL = new THREE.DirectionalLight(0xfff3e0, P.key); keyL.position.set(2.5, 5, 8);
+const rimL = new THREE.DirectionalLight(0xc9d8ff, P.rim); rimL.position.set(-3, -6, 5);
+scene.add(amb, keyL, rimL);
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+function makeTex(c){ const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso; return t; }
+function linearColor(hex, l){ const c = new THREE.Color(hex); if(l) c.offsetHSL(0,0,l); return c.convertSRGBToLinear(); }
+
+const boxGeo = new THREE.BoxGeometry(1,1,1);
+const discGeo = new THREE.CylinderGeometry(0.47, 0.47, 0.012, 128, 1);
+const items = PROJECTS.map((p, i) => {
+  const coverC = drawCover(p);
+  const coverT = makeTex(coverC);
+  if(p.cover){ new THREE.TextureLoader().load(p.cover, t => { t.encoding = THREE.sRGBEncoding; t.anisotropy = maxAniso; cover.map = t; cover.needsUpdate = true; item.coverURL = p.cover; }); }
+  const edge = new THREE.MeshStandardMaterial({color:linearColor(p.spine[0], -0.18), roughness:.85, transparent:true});
+  const cover = new THREE.MeshStandardMaterial({map:coverT, roughness:.6, transparent:true});
+  const spine = new THREE.MeshStandardMaterial({map:makeTex(drawSpine(p)), roughness:.7, transparent:true});
+  // BoxGeometry face order: +x -x +y(front cover) -y(back cover) +z(spine, faces camera) -z
+  const box = new THREE.Mesh(boxGeo, [edge, edge, cover, cover, spine, edge]);
+  box.userData.idx = i;
+  const vTop = new THREE.MeshStandardMaterial({map:makeTex(drawVinyl(p)), roughness:.3, metalness:.25, transparent:true});
+  const vSide = new THREE.MeshStandardMaterial({color:0x111111, roughness:.4, transparent:true});
+  const disc = new THREE.Mesh(discGeo, [vSide, vTop, vTop]);
+  disc.visible = false;
+  const grp = new THREE.Group(); grp.rotation.order = 'YXZ';
+  grp.add(disc, box); root.add(grp);
+  const item = {p, i, grp, box, disc, spine, mats:[edge, cover, spine, vTop, vSide], hover:0, coverC, coverURL:null, r:i, vis:1};
+  return item;
+});
+async function rebuildTextures(){
+  setTypeVars(); await loadType();
+  for(const it of items){
+    const [ , cover, , vTop] = it.mats;
+    it.coverC = drawCover(it.p);
+    if(!it.p.cover){ cover.map.dispose(); cover.map = makeTex(it.coverC); cover.needsUpdate = true; it.coverURL = null; }
+    vTop.map.dispose(); vTop.map = makeTex(drawVinyl(it.p)); vTop.needsUpdate = true;
+  }
+  rebuildSpines();
+}
+function rebuildSpines(){ for(const it of items){ it.spine.map.dispose(); it.spine.map = makeTex(drawSpine(it.p)); it.spine.needsUpdate = true; } }
+
+/* ============================================================
+   5. STATE & INPUT
+   ============================================================ */
+const S = {target:0, current:0, vel:0, dragging:false, lastInput:0, mode:'browse', sel:-1, openT:0, othersOut:0, discT:0, zoom:0, hovered:-1};
+let fit = 1, lastHud = -1;
+
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+function applyScene(){
+  camera.fov = P.fov; camera.updateProjectionMatrix();
+  amb.intensity = P.ambient; keyL.intensity = P.key; rimL.intensity = P.rim;
+  scene.background = new THREE.Color(P.bg);
+  document.body.style.background = P.bg;
+  scene.fog = P.fog ? new THREE.Fog(P.bg, P.camDist + 1.5, P.camDist + 12) : null;
+}
+applyScene();
+
+window.addEventListener('wheel', e => {
+  if(S.mode !== 'browse') return;
+  e.preventDefault();
+  const dy = e.deltaMode === 1 ? e.deltaY*16 : e.deltaY;
+  S.target += dy * P.wheelSens * 0.0018;
+  S.vel = 0; S.lastInput = performance.now();
+}, {passive:false});
+
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+function pick(x, y){
+  mouse.set(x/innerWidth*2-1, -(y/innerHeight)*2+1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObjects(items.filter(it => it.grp.visible).map(it => it.box))[0];
+  return hit ? hit.object.userData.idx : -1;
+}
+let down = null, lastY = 0, lastT = 0;
+canvas.addEventListener('pointerdown', e => {
+  if(S.mode !== 'browse') return;
+  canvas.setPointerCapture(e.pointerId);
+  down = {x:e.clientX, y:e.clientY, t:performance.now()};
+  S.dragging = true; S.vel = 0; lastY = e.clientY; lastT = performance.now();
+  canvas.classList.add('grabbing');
+});
+canvas.addEventListener('pointermove', e => {
+  if(S.mode !== 'browse') return;
+  if(S.dragging){
+    const now = performance.now(), dy = e.clientY - lastY;
+    const delta = -dy / innerHeight * P.dragSens;
+    S.target += delta;
+    const dt = Math.max(1, now - lastT);
+    S.vel = lerp(S.vel, delta * (16/dt), 0.5);   // per-frame velocity, used for inertia
+    lastY = e.clientY; lastT = now; S.lastInput = now;
+  } else {
+    S.hovered = pick(e.clientX, e.clientY);
+    canvas.classList.toggle('pointer', S.hovered >= 0);
+  }
+});
+function endDrag(e){
+  if(!S.dragging) return;
+  S.dragging = false; canvas.classList.remove('grabbing');
+  if(performance.now() - lastT > 80) S.vel = 0;
+  if(down && Math.hypot(e.clientX-down.x, e.clientY-down.y) < 6 && performance.now()-down.t < 450){
+    S.vel = 0;
+    const idx = pick(e.clientX, e.clientY);
+    if(idx >= 0) openProject(idx);
+  }
+  down = null;
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('pointerleave', () => { if(!S.dragging) S.hovered = -1; });
+
+addEventListener('keydown', e => {
+  if(e.target.closest && e.target.closest('.lil-gui')) return;
+  if(e.key === 'Escape' && S.mode === 'detail') closeProject();
+  if(S.mode === 'browse'){
+    if(e.key === 'ArrowDown' || e.key === 'PageDown'){ S.target = Math.round(S.target)+1; S.vel = 0; e.preventDefault(); }
+    if(e.key === 'ArrowUp' || e.key === 'PageUp'){ S.target = Math.round(S.target)-1; S.vel = 0; e.preventDefault(); }
+    if(e.key === 'Enter'){ openProject(currentIndex()); }
+    if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
+      const gi = GENRES.findIndex(g => g.id === genre), step = e.key === 'ArrowRight' ? 1 : -1;
+      setGenre(GENRES[(gi + step + GENRES.length) % GENRES.length].id); e.preventDefault();
+    }
+  }
+  if((e.key === 'd' || e.key === 'D') && !e.metaKey && !e.ctrlKey && tweakUnlocked()) toggleGui();
+});
+function currentRank(){ const n = vN(); return ((Math.round(S.current) % n) + n) % n; }
+function currentIndex(){ return VIEW[currentRank()]; }
+
+/* ---- crates (category filter) ---- */
+const cratesEl = $('crates');
+for(const g of GENRES){
+  const n = g.id === 'all' ? PROJECTS.length : PROJECTS.filter(p => inGenre(p, g.id)).length;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'crate'; b.dataset.genre = g.id; b.title = g.note;
+  const nm = document.createElement('span'); nm.textContent = g.name;
+  if(g.featured){
+    b.classList.add('is-featured');
+  }
+  const ct = document.createElement('sup'); ct.textContent = String(n).padStart(2,'0');
+  b.append(nm, ct); b.addEventListener('click', () => setGenre(g.id)); cratesEl.append(b);
+}
+function setGenre(id){
+  if(S.mode !== 'browse') return;
+  const keep = currentIndex();
+  genre = id;
+  VIEW = PROJECTS.map((_, i) => i).filter(i => id === 'all' || inGenre(PROJECTS[i], id));
+  const crate = GENRES.find(g => g.id === id);
+  if(crate && crate.order){   // a crate can set its own running order (titles); anything not listed follows
+    const pos = i => { const k = crate.order.indexOf(PROJECTS[i].title); return k < 0 ? 999 + i : k; };
+    VIEW.sort((a, b) => pos(a) - pos(b));
+  }
+  const next = id === 'all' && VIEW.indexOf(keep) >= 0 ? VIEW.indexOf(keep) : 0;   // a crate opens at its first record
+  const shift = next - S.current;                 // re-base so nothing jumps on screen, then glide to new slots
+  for(const it of items) it.r += shift;
+  S.current = S.target = next; S.vel = 0; lastHud = -1;
+  for(const b of cratesEl.children) b.setAttribute('aria-pressed', String(b.dataset.genre === id));
+  const active = cratesEl.querySelector('[aria-pressed="true"]'); if(active) active.scrollIntoView({block:'nearest', inline:'nearest'});
+}
+setGenre('all');
+$('brandBtn').addEventListener('click', () => { if(S.mode !== 'browse') return; if(VIEW.indexOf(ABOUT) < 0) setGenre('all'); openProject(ABOUT); });
+
+/* ============================================================
+   6. OPEN / CLOSE ANIMATION (turn → vinyl slides out → camera pushes in → project page)
+   ============================================================ */
+const detail = $('detail');
+let tl = null;
+function timeScale(){ return reduceMotion ? 3 : 1 / Math.max(0.2, P.openDuration); }
+
+function openProject(i, instant){
+  if(tl) tl.kill();
+  S.mode = 'anim'; S.sel = i; S.hovered = -1; canvas.classList.remove('pointer');
+  const rank = Math.max(0, VIEW.indexOf(i));
+  const dest = P.loop ? S.current + wrap(rank - S.current) : rank;
+  if(instant){ S.current = dest; S.target = dest; }
+  S.openT = 0; S.othersOut = 0; S.discT = 0; S.zoom = 0;
+  fillDetail(i);
+  detail.hidden = false; detail.style.opacity = 0; detail.style.pointerEvents = 'none';
+  tl = gsap.timeline({
+    onComplete(){ S.mode = 'detail'; detail.style.pointerEvents = 'auto'; $('backBtn').focus({preventScroll:true}); },
+    onReverseComplete(){ S.mode = 'browse'; detail.hidden = true; S.sel = -1; S.target = S.current; S.vel = 0; canvas.focus({preventScroll:true}); }
+  });
+  tl.to(S, {current:dest, duration:.55, ease:'power2.out'}, 0)
+    .to(S, {othersOut:1, duration:.6, ease:'power2.in'}, .05)
+    .to(S, {openT:1, duration:.95, ease:'power3.inOut'}, .2)
+    .to(S, {discT:1, duration:.85, ease:'power2.out'}, .95)
+    .to(S, {zoom:1, duration:.75, ease:'power2.in'}, 1.75)
+    .to(detail, {opacity:1, duration:.45, ease:'none'}, 2.1);
+  tl.timeScale(timeScale());
+  if(instant) tl.progress(1);
+}
+function closeProject(){
+  if(!tl || S.mode !== 'detail') return;
+  S.mode = 'anim'; detail.style.pointerEvents = 'none'; resetFilm();
+  tl.timeScale(timeScale()*1.35); tl.reverse();
+}
+$('backBtn').addEventListener('click', closeProject);
+$('nextBtn').addEventListener('click', () => { openProject(VIEW[(VIEW.indexOf(S.sel)+1) % vN()], true); detail.scrollTop = 0; });
+
+/* ---- film player: facade → YouTube iframe → fallback ---- */
+let filmCleanup = null;
+function resetFilm(){ if(filmCleanup) filmCleanup(); filmCleanup = null; $('dFilm').innerHTML = ''; }
+function buildFilm(p, it){
+  resetFilm();
+  const film = $('dFilm'); film.hidden = !p.yt;
+  if(!p.yt) return;
+  const url = 'https://www.youtube.com/watch?v=' + p.yt;
+  film.innerHTML = `
+    <div class="film-frame">
+      <button class="film-poster" type="button">
+        <img alt="">
+        <span class="film-play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4l14 8-14 8z"/></svg></span>
+        <span class="film-label"></span>
+      </button>
+      <div class="film-fallback" hidden>
+        <p class="film-fb-title">This film can’t play here</p>
+        <p class="film-fb-text">The YouTube player was blocked or didn’t load on this page. It plays normally on YouTube.</p>
+        <a class="watch" target="_blank" rel="noopener">Watch on YouTube ↗</a>
+      </div>
+    </div>
+    <p class="film-note"><a target="_blank" rel="noopener"></a></p>`;
+  const poster = film.querySelector('.film-poster');
+  poster.querySelector('img').src = it.coverURL;
+  poster.setAttribute('aria-label', `Play ${p.title} film, ${p.film}`);
+  poster.querySelector('.film-label').textContent = `Play the film · ${p.film}`;
+  film.querySelectorAll('a').forEach(a => a.href = url);
+  film.querySelector('.film-note a').textContent = `Not playing? Watch on YouTube · ${p.film} ↗`;
+  poster.addEventListener('click', () => playFilm(p));
+}
+function playFilm(p){
+  const film = $('dFilm'), frame = film.querySelector('.film-frame');
+  if(!frame || frame.querySelector('iframe') || frame.classList.contains('is-failed')) return;
+  const poster = frame.querySelector('.film-poster'), label = poster.querySelector('.film-label'), fallback = frame.querySelector('.film-fallback');
+  label.textContent = 'Loading the player…';
+  const f = document.createElement('iframe');
+  const origin = /^https?:/.test(location.origin) ? '&origin=' + encodeURIComponent(location.origin) : '';
+  f.src = `https://www.youtube-nocookie.com/embed/${p.yt}?autoplay=1&rel=0&playsinline=1&enablejsapi=1${origin}`;
+  f.title = `${p.title} film`;
+  f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  f.allowFullscreen = true;
+  frame.append(f);
+  let ok = false;
+  const say = msg => { try{ f.contentWindow.postMessage(JSON.stringify(msg), '*'); }catch(e){} };
+  const onMsg = e => {
+    if(e.source !== f.contentWindow) return;
+    let d; try{ d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; }catch(err){ return; }
+    if(!ok){ ok = true; poster.hidden = true; say({event:'command', func:'addEventListener', args:['onError']}); }
+    if(d && d.event === 'onError') fail();
+  };
+  addEventListener('message', onMsg);
+  const ping = setInterval(() => say({event:'listening', id:1, channel:'widget'}), 400);   // the YouTube player answers once it is ready
+  const timer = setTimeout(() => { if(!ok) fail(); }, 6000);
+  function stop(){ clearInterval(ping); clearTimeout(timer); removeEventListener('message', onMsg); }
+  function fail(){
+    stop(); f.remove();
+    frame.classList.add('is-failed');
+    poster.hidden = false; poster.disabled = true; poster.querySelector('.film-play').hidden = true; label.textContent = '';
+    fallback.hidden = false;
+    const note = film.querySelector('.film-note'); if(note) note.hidden = true;   // the fallback already says it
+  }
+  filmCleanup = () => { stop(); f.remove(); };
+}
+
+function renderResume(p){
+  const box = $('dResume'); box.innerHTML = ''; box.hidden = !p.resume;
+  if(!p.resume) return;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; };
+  for(const sec of p.resume){
+    const s = el('section', 'r-sec' + (sec.compact ? ' compact' : ''));
+    s.append(el('h2', null, sec.h));
+    const ul = el('ul', 'r-list');
+    for(const it of sec.items){
+      const li = el('li'), head = el('div', 'r-head'), t = el('p', 'r-title');
+      // organisation first in Experience, Education and Research; Recognition and Off the clock lead with their own first field
+      const orgFirst = it.org && !sec.compact && !sec.leadRole;
+      t.append(el('strong', null, orgFirst ? it.org : it.role));
+      const rest = orgFirst ? it.role : it.org;
+      if(rest) t.append(document.createTextNode(' · ' + rest));
+      if(it.note) t.append(document.createTextNode(' · ' + it.note));
+      const target = it.rec ? PROJECTS.findIndex(q => q.title === it.rec) : -1;
+      if(target >= 0){
+        const b = el('button', 'r-rec', `${it.rec} →`); b.type = 'button';
+        b.addEventListener('click', () => { openProject(target, true); });
+        t.append(b);
+      }
+      head.append(t);
+      if(it.when) head.append(el('span', 'r-when', it.when));
+      li.append(head);
+      if(it.notes){ const n = el('ul', 'r-notes'); for(const x of it.notes) n.append(el('li', null, x)); li.append(n); }
+      ul.append(li);
+    }
+    s.append(ul); box.append(s);
+  }
+}
+
+function fillDetail(i){
+  const it = items[i], p = it.p;
+  if(!it.coverURL) it.coverURL = it.coverC.toDataURL('image/jpeg', .9);
+  detail.style.setProperty('--p-accent', p.colors[2] === '#111111' ? '#e9a23b' : p.colors[2]);
+  $('dCover').src = it.coverURL; $('dCover').alt = `${p.title} cover`;
+  // say each thing once: drop the summary when it only repeats the category or the context
+  const norm = t => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const subRepeats = !p.sub || norm(p.cat).includes(norm(p.sub)) || norm(p.context).includes(norm(p.sub));
+  $('dContext').textContent = p.about ? '' : [p.context, p.year].filter(Boolean).join(' · ');
+  $('dLede').hidden = !p.lede; $('dLede').textContent = p.lede || '';
+  const links = p.links || (p.gh ? [['Code on GitHub', p.gh]] : []);   // About me lists its profiles; a project links its repository
+  $('dLinks').hidden = !links.length; $('dLinks').innerHTML = '';
+  for(const [label, url] of links){ const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label + ' ↗'; $('dLinks').append(a); }
+  $('dContext').parentElement.hidden = !!p.about;
+  renderResume(p);
+  $('dTracks').parentElement.hidden = !p.tracks.length;
+  $('dTitle').textContent = p.title;
+  $('dSize').hidden = p.size !== 'single';   // small projects say so, like a 7" single next to the LPs
+  $('dSub').hidden = subRepeats; $('dSub').textContent = p.sub || '';
+  $('dAward').hidden = !p.award; $('dAward').textContent = p.award ? p.award + ' · ' : '';
+  const meta = [['My role', p.role], ['Made with', p.medium]].filter(m => m[1]);
+  $('dMeta').hidden = !meta.length;
+  $('dMeta').innerHTML = '';
+  for(const [k,v] of meta){ const d = document.createElement('div'); const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; d.append(dt, dd); $('dMeta').append(d); }
+  $('dTracks').innerHTML = '';
+  for(const [no, h, txt] of p.tracks){
+    const li = document.createElement('li');
+    const s = document.createElement('span'); s.className = 'no'; s.textContent = no;
+    const h3 = document.createElement('h3'); h3.textContent = h;
+    const pp = document.createElement('p'); pp.textContent = txt;
+    li.append(s, h3, pp); $('dTracks').append(li);
+  }
+  buildFilm(p, it);
+  const gal = $('dGallery'); gal.innerHTML = ''; gal.hidden = !p.pages;
+  if(p.pages){
+    for(let n = p.pages[0]; n <= p.pages[1]; n++){
+      const img = document.createElement('img');
+      img.src = `portfolio/pg-${String(n).padStart(2,'0')}.jpg`;
+      img.alt = `${p.title}, portfolio page ${n - p.pages[0] + 1}`;
+      img.loading = 'lazy'; img.decoding = 'async';
+      if(PAGE_DIMS[n]){ img.width = PAGE_DIMS[n][0]; img.height = PAGE_DIMS[n][1]; }
+      gal.append(img);
+    }
+  }
+  const nx = PROJECTS[VIEW[(VIEW.indexOf(i)+1) % vN()]];
+  $('nextBtn').textContent = `Next record: ${nx.title} →`;
+  detail.scrollTop = 0;
+}
+
+/* ============================================================
+   7. PER-FRAME LAYOUT
+   ============================================================ */
+const tmpV = new THREE.Vector3(), lookV = new THREE.Vector3();
+function layout(dt){
+  // shrink everything on narrow screens
+  const visH = 2 * P.camDist * Math.tan(P.fov*DEG/2);
+  fit = Math.min(1, visH * camera.aspect * P.fitRatio / P.width);
+  root.scale.setScalar(fit);
+
+  const maxT = P.maxTilt*DEG;
+  for(const it of items){
+    const rank = VIEW.indexOf(it.i), inView = rank >= 0;
+    if(inView) it.r = lerp(it.r, rank, 1 - Math.exp(-9*dt));
+    it.vis = lerp(it.vis, inView ? 1 : 0, 1 - Math.exp(-9*dt));
+    let d = it.r - S.current; if(P.loop && inView) d = wrap(d);
+    const ad = Math.abs(d);
+    it.hover = lerp(it.hover, S.hovered === it.i && S.mode === 'browse' ? 1 : 0, 1 - Math.exp(-12*dt));
+    // pose in the stack
+    let px = 0, py = -d*P.spacing, pz = -ad*P.depthPerItem + it.hover*P.hoverLift;
+    let rx = clamp(P.baseTilt*DEG + P.tiltPerItem*DEG*d, -maxT, maxT);
+    let ry = P.yawPerItem*DEG*d;
+    let sc = 1 + P.centerScale*Math.max(0, 1-ad);
+    let op = (1 - clamp((ad - P.fadeStart)/Math.max(0.01, P.fadeRange), 0, 1)) * it.vis;
+    px += (1 - it.vis) * P.width * 1.1;
+
+    if(it.i === S.sel){
+      const o = S.openT;
+      px = lerp(px, -P.width*0.22*P.openScale, o);
+      py = lerp(py, 0.1, o);
+      pz = lerp(pz, P.openZ, o);
+      rx = lerp(rx, (90 - P.openTilt)*DEG, o);
+      ry = lerp(ry, P.openYaw*DEG, o);
+      sc = lerp(sc, P.openScale, o);
+      op = lerp(op, 1, o);
+      it.disc.visible = S.discT > 0.001;
+      it.disc.position.x = S.discT * P.discOut * P.width;
+      it.disc.rotation.y -= (reduceMotion ? 0 : P.spinSpeed) * dt * S.discT;
+    } else {
+      py += Math.sign(d || 1) * S.othersOut * P.spacing * 4;
+      op *= 1 - S.othersOut;
+      it.disc.visible = false;
+    }
+    it.grp.position.set(px, py, pz);
+    it.grp.rotation.set(rx, ry, 0);
+    it.grp.scale.setScalar(sc);
+    it.box.scale.set(P.width, P.thickness, P.width);
+    it.disc.scale.setScalar(P.width);
+    it.grp.visible = op > 0.01;
+    for(const m of it.mats) m.opacity = op;
+  }
+  root.updateMatrixWorld();
+
+  // camera (pushes in to the vinyl when a record opens)
+  camera.position.set(0, P.camY, P.camDist); lookV.set(0, 0, 0);
+  if(S.sel >= 0 && S.zoom > 0){
+    items[S.sel].disc.getWorldPosition(tmpV);
+    const z = S.zoom;
+    camera.position.set(lerp(0, tmpV.x, z), lerp(P.camY, tmpV.y, z), lerp(P.camDist, tmpV.z + 1.4, z));
+    lookV.lerp(tmpV, z);
+  }
+  camera.lookAt(lookV);
+}
+
+function updateHud(){
+  const idx = currentIndex();
+  if(idx === lastHud) return; lastHud = idx;
+  const p = PROJECTS[idx];
+  $('nowTitle').textContent = p.title;
+  document.documentElement.style.setProperty('--p-accent', p.colors[2] === '#111111' ? '#e9a23b' : p.colors[2]);
+}
+
+let prev = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now - prev)/1000); prev = now;
+  if(S.mode === 'browse'){
+    if(!S.dragging){
+      if(Math.abs(S.vel) > 1e-4){ S.target += S.vel; S.vel *= P.inertia; } else S.vel = 0;
+      if(!P.loop){
+        if(S.target < 0) S.target = lerp(S.target, 0, 1 - Math.exp(-10*dt));
+        if(S.target > vN()-1) S.target = lerp(S.target, vN()-1, 1 - Math.exp(-10*dt));
+      }
+      if(P.snap && now - S.lastInput > 140 && Math.abs(S.vel) < 0.01){
+        S.target = lerp(S.target, Math.round(S.target), 1 - Math.exp(-P.snapStrength*dt));
+      }
+    } else if(!P.loop){
+      S.target = clamp(S.target, -0.6, vN()-1+0.6);  // rubber-band limit when dragging past the ends
+    }
+    S.current = lerp(S.current, S.target, 1 - Math.exp(-P.followSpeed*dt));
+  }
+  if(S.mode !== 'detail'){
+    layout(dt);
+    renderer.render(scene, camera);
+    updateHud();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ============================================================
+   8. TWEAK PANEL (lil-gui)
+   ============================================================ */
+let gui = null;
+function toast(msg){
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t);
+  setTimeout(() => t.remove(), 1800);
+}
+let saveTimer = 0;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() => { try{ localStorage.setItem(STORE_KEY, JSON.stringify(P)); }catch(e){} }, 250); }
+let spineTimer = 0;
+function onSize(){ clearTimeout(spineTimer); spineTimer = setTimeout(rebuildSpines, 120); save(); }
+
+function showParamOut(json){
+  const box = document.createElement('div'); box.className = 'param-out';
+  const ta = document.createElement('textarea'); ta.id = 'paramOut'; ta.value = json; ta.readOnly = true;
+  const b = document.createElement('button'); b.className = 'chip mono'; b.textContent = 'Close';
+  b.onclick = () => box.remove();
+  box.append(ta, b); document.body.append(box); ta.focus(); ta.select();
+}
+
+if(window.lil){
+  gui = new lil.GUI({title:'Tweak panel'});
+  const actions = {
+    preset:Object.keys(PRESETS)[0],
+    copy(){
+      const json = JSON.stringify(P, null, 2);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(json).then(() => toast('Copied. Paste it over DEFAULTS in the code.'), () => showParamOut(json));
+      } else showParamOut(json);
+    },
+    reset(){ Object.assign(P, DEFAULTS); refresh(); toast('Reset to defaults'); }
+  };
+  function refresh(){ gui.controllersRecursive().forEach(c => c.updateDisplay()); applyScene(); rebuildTextures(); save(); }
+
+  const fa = gui.addFolder('Presets & actions');
+  fa.add(actions, 'preset', Object.keys(PRESETS)).name('Preset').onChange(k => { Object.assign(P, PRESETS[k]); refresh(); });
+  fa.add(P, 'typeface', Object.keys(TYPES)).name('Typeface').onChange(() => { rebuildTextures(); save(); });
+  fa.add(actions, 'copy').name('Copy params JSON');
+  fa.add(actions, 'reset').name('Reset to defaults');
+
+  const fl = gui.addFolder('Stack layout');
+  fl.add(P, 'spacing', 0.3, 3, 0.01).name('Spacing').onChange(save);
+  fl.add(P, 'baseTilt', -60, 60, 0.5).name('Base tilt °').onChange(save);
+  fl.add(P, 'tiltPerItem', -40, 40, 0.5).name('Tilt per record °').onChange(save);
+  fl.add(P, 'maxTilt', 0, 90, 1).name('Max tilt °').onChange(save);
+  fl.add(P, 'yawPerItem', -30, 30, 0.5).name('Yaw per record °').onChange(save);
+  fl.add(P, 'depthPerItem', 0, 2, 0.01).name('Depth per record').onChange(save);
+  fl.add(P, 'centerScale', 0, 0.4, 0.01).name('Center scale').onChange(save);
+  fl.add(P, 'fadeStart', 0, 6, 0.1).name('Fade start (records)').onChange(save);
+  fl.add(P, 'fadeRange', 0.1, 6, 0.1).name('Fade range (records)').onChange(save);
+  fl.add(P, 'loop').name('Infinite loop').onChange(save);
+
+  const fs = gui.addFolder('Record size');
+  fs.add(P, 'width', 1, 6, 0.05).name('Sleeve size').onChange(onSize);
+  fs.add(P, 'thickness', 0.03, 0.5, 0.005).name('Thickness (spine)').onChange(onSize);
+  fs.add(P, 'fitRatio', 0.3, 1, 0.01).name('Narrow-screen fit').onChange(save);
+
+  const fc = gui.addFolder('Camera');
+  fc.add(P, 'fov', 10, 80, 0.5).name('Field of view').onChange(() => { applyScene(); save(); });
+  fc.add(P, 'camDist', 3, 30, 0.1).name('Distance').onChange(() => { applyScene(); save(); });
+  fc.add(P, 'camY', -5, 5, 0.05).name('Height').onChange(save);
+
+  const fm = gui.addFolder('Feel');
+  fm.add(P, 'followSpeed', 1, 30, 0.1).name('Follow speed').onChange(save);
+  fm.add(P, 'dragSens', 0.5, 10, 0.1).name('Drag (records/screen)').onChange(save);
+  fm.add(P, 'wheelSens', 0.1, 4, 0.05).name('Wheel sensitivity').onChange(save);
+  fm.add(P, 'inertia', 0, 0.98, 0.005).name('Inertia').onChange(save);
+  fm.add(P, 'snap').name('Snap when stopped').onChange(save);
+  fm.add(P, 'snapStrength', 0.5, 20, 0.1).name('Snap strength').onChange(save);
+  fm.add(P, 'hoverLift', 0, 1.5, 0.01).name('Hover lift').onChange(save);
+
+  const fo = gui.addFolder('Open animation');
+  fo.add(P, 'openZ', -3, 6, 0.05).name('Open position Z').onChange(save);
+  fo.add(P, 'openScale', 0.4, 2, 0.01).name('Open scale').onChange(save);
+  fo.add(P, 'openTilt', -30, 45, 0.5).name('Open lean back °').onChange(save);
+  fo.add(P, 'openYaw', -60, 60, 0.5).name('Open yaw °').onChange(save);
+  fo.add(P, 'discOut', 0, 1, 0.01).name('Vinyl slide-out').onChange(save);
+  fo.add(P, 'spinSpeed', 0, 8, 0.05).name('Vinyl spin speed').onChange(save);
+  fo.add(P, 'openDuration', 0.3, 3, 0.05).name('Duration multiplier').onChange(save);
+
+  const fv = gui.addFolder('Light & background');
+  fv.add(P, 'ambient', 0, 2, 0.01).name('Ambient light').onChange(() => { applyScene(); save(); });
+  fv.add(P, 'key', 0, 3, 0.01).name('Key light').onChange(() => { applyScene(); save(); });
+  fv.add(P, 'rim', 0, 3, 0.01).name('Under light').onChange(() => { applyScene(); save(); });
+  fv.addColor(P, 'bg').name('Background').onChange(() => { applyScene(); save(); });
+  fv.add(P, 'fog').name('Depth fog').onChange(() => { applyScene(); save(); });
+
+  [fs, fc, fo, fv].forEach(f => f.close());
+}
+/* The tweak panel is hidden from visitors. Open the site with #tweak at the end of the address to unlock it,
+   then press D to show or hide it. Visitors always see the values in DEFAULTS. */
+function tweakUnlocked(){ return location.hash === '#tweak'; }
+function toggleGui(force){
+  if(!gui) return;
+  const on = tweakUnlocked() && (typeof force === 'boolean' ? force : gui.domElement.classList.contains('off'));
+  gui.domElement.classList.toggle('off', !on);
+}
+toggleGui(tweakUnlocked());
+addEventListener('hashchange', () => toggleGui(tweakUnlocked()));
+})();
+</script>
+</body>
+</html>
